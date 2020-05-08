@@ -9,10 +9,10 @@ def test_name():
     assert thomas["name"] == "Thomas"
     
 def test_brille():
-    assert thomas["brille"] == "nerdbrille"
+    assert thomas["brille"] == "Kastenbrille"
     
 def test_alter():
-    assert thomas["alter"] == 22
+    assert thomas["alter"] == "unknown"
     
 def test_gruppe():
-    assert thomas["gruppe"] == "sns"
+    assert thomas["gruppe"] == "pfl"
