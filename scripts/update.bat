@@ -1,1 +1,1 @@
-conda list -e > requirements.txt
+conda env export --no-build > ../environment2.yml
