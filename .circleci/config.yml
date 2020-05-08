@@ -13,9 +13,7 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            conda env create -n fog-node-discovery
-            conda activate fog-node-discovery
-            conda install -y --file requirements.txt
+            conda env create -f environment.yml
 
       # Step 3: run linter and tests
       - run:
