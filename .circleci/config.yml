@@ -16,7 +16,7 @@ jobs:
             conda env create -f environment.yml
             conda init bash
             source ~/.bashrc
-            conda activate node-fog-discovery
+            conda activate fog-node-discovery
             env update --file environment.yml  --prune
 
       # Step 3: run linter and tests
