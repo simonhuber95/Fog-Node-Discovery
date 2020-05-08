@@ -14,6 +14,7 @@ jobs:
           name: install dependencies
           command: |
             conda env create -f environment.yml
+            conda init bash
             conda activate node-fog-discovery
             env update --file environment.yml  --prune
 
