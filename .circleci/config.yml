@@ -1,0 +1,29 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: continuumio/miniconda3:latest
+
+    working_directory: ~/fog-node-discovery
+
+    steps:
+      # Step 1: obtain repo from GitHub
+      - checkout
+      # Step 2: create virtual env and install dependencies
+      - run:
+          name: install dependencies
+          command: |
+            conda env create -f environment.yml
+            conda init bash
+            source ~/.bashrc
+            conda activate fog-node-discovery
+            conda env update --file environment.yml  --prune
+
+      # Step 3: run linter and tests # flake8 --statistics
+      - run:
+          name: run tests
+          command: |
+            conda init bash
+            source ~/.bashrc
+            conda activate fog-node-discovery
+            pytest
