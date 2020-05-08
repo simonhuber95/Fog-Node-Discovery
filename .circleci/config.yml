@@ -19,11 +19,11 @@ jobs:
             conda activate fog-node-discovery
             conda env update --file environment.yml  --prune
 
-      # Step 3: run linter and tests
+      # Step 3: run linter and tests # flake8 --statistics
       - run:
           name: run tests
           command: |
             conda init bash
+            source ~/.bashrc
             conda activate fog-node-discovery
-            flake8 --statistics
-            pytest -v --cov
+            pytest
