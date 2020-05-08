@@ -1,4 +1,4 @@
-name: fog-node-discovery
+name: fog-node-discovery-dev
 channels:
   - defaults
 dependencies:
