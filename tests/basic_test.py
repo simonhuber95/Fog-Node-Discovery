@@ -6,7 +6,7 @@ def func(x):
 
 
 def test_1():
-    assert func(3) == 5
+    assert func(3) == 4
     
 def test_2():
     assert muste_be_right(1) == 1
