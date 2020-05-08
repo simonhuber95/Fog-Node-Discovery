@@ -1,12 +1,8 @@
 def sayhello():
     print('Hello')
-    if 1!=2:
-        return(2)
+    if 1 != 2:
+        return 2
+    elif 1 == 2:
+        return 1
 
-
-def __init__():
-    a = 1
-
-
-sayhello() 
-
+sayhello()
