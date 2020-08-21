@@ -38,10 +38,16 @@ dependencies:
   - sqlite=3.31.1
   - toml=0.10.0
   - typed-ast=1.4.1
+  - vc=14.1
+  - vs2015_runtime=14.16.27012
   - wcwidth=0.1.9
   - wheel=0.34.2
+  - wincertstore=0.2
   - wrapt=1.11.2
   - zipp=3.1.0
   - zlib=1.2.11
+  - pip:
+      - autopep8==1.5.2
+      - pycodestyle==2.5.0
+      - simpy==4.0.1
 prefix: C:\Users\shube\Miniconda3\envs\fog-node-discovery
-
