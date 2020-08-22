@@ -3,19 +3,13 @@ class MobileClient(object):
         self.env = env
       # Start the run process everytime an instance is created.
         self.action = env.process(self.run())
+        self.phy_x = 0
+        self.phy_y = 0
+        self.virt_x = 0
+        self.virt_y = 0
 
     def run(self):
+        movement = {"from": [0, 0], "to": [8, 20], "duration": 10}
         while True:
             print('Start parking and charging at %d' % self.env.now)
-            charge_duration = 5
-            # We yield the process that process() returns
-            # to wait for it to finish
-            yield self.env.process(self.charge(charge_duration))
-            # The charge process has finished and
-            # we can start driving again.
-            print('Start driving at %d' % self.env.now)
-            trip_duration = 2
-            yield self.env.timeout(trip_duration)
-           
-    def charge(self, duration):
-        yield self.env.timeout(duration)
+            yield self.env.timeout(1)
