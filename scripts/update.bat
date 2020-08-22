@@ -1,1 +1,1 @@
-conda env export --no-build > ../environment2.yml
+conda env export --no-build > ../environment.yml

@@ -43,5 +43,8 @@ dependencies:
   - wrapt=1.11.2
   - zipp=3.1.0
   - zlib=1.2.11
+  - pip:
+      - autopep8==1.5.2
+      - pycodestyle==2.5.0
+      - simpy==4.0.1
 prefix: C:\Users\shube\Miniconda3\envs\fog-node-discovery
-
