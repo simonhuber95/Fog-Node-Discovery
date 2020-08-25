@@ -1,5 +1,6 @@
 import math
 import simpy
+import geopy
 
 
 class MobileClient(object):
@@ -19,7 +20,6 @@ class MobileClient(object):
 
     def run(self):
         print("Client {} starting".format(self.id))
-        print(len(list(self.pairs)))
         for activity, leg in self.pairs:
             print(activity.get("type"))
             entry = {}
@@ -28,6 +28,7 @@ class MobileClient(object):
             route = leg.find('route')
             entry['trav_time'] = route.attrib['trav_time']
             entry['distance'] = route.attrib['distance']
+            print(entry)
             yield self.env.process(self.move(entry['x'], entry['y'], entry['trav_time'], entry['distance']))
 
     def move(self, to_x, to_y, duration, distance):
