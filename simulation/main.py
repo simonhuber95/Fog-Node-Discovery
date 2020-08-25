@@ -22,4 +22,4 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
 print("Init MobileClients")
 #print("Init Fog Nodes")
 #node = FogNode(env)
-env.run(until=30)
+env.run(until=15000)
