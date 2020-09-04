@@ -23,10 +23,16 @@ class MobileClient(object):
         print("Client {} starting".format(self.id))
         for activity, leg in self.pairs:
             entry = {}
+            # Setting the physical end x coordinate from the following activity
             entry['x'] = float(activity.attrib['x'])
+            # Setting the physical end y coordinate from the following activty
             entry['y'] = float(activity.attrib['y'])
+            # retrieving the route from the leg node
             route = leg.find('route')
-            entry['trav_time'] = route.attrib['trav_time']
+            # Setting the travel time in seconds
+            duration = route.attrib['trav_time']
+            entry['trav_time'] = sum(x * int(t) for x, t in zip([3600, 60, 1], duration.split(":"))) 
+            # Setting the distance as float in meters
             entry['distance'] = float(route.attrib['distance'])
             print(entry)
             yield self.env.process(self.move(entry['x'], entry['y'], entry['trav_time'], entry['distance']))
@@ -38,14 +44,14 @@ class MobileClient(object):
         # dist_y = geo_distance.distance((self.phy_y, 0), (to_y, 0))
         dist_x = to_x - self.phy_x
         dist_y = to_y - self.phy_y
-        # Convert times into seconds
-        duration = sum(x * int(t) for x, t in zip([3600, 60, 1], duration.split(":"))) 
         vel_x = dist_x / duration
         vel_y = dist_y / duration
-        while(to_x != round(self.phy_x) and round(to_y != self.phy_y)):
+        while(round(to_x, 2) != round(self.phy_x, 2) and round(to_y, 2) != round(self.phy_y, 2)):
             self.phy_x += vel_x
             self.phy_y += vel_y
 
             yield self.env.timeout(1)
+        
             # print("Timestep: {} Client id: {} x:{:.2f} y:{:.2f}".format(
             #     self.env.now, self.id, self.phy_x, self.phy_y))
+            # print("Delta x: {}, Delta y: {}".format(round(to_x - self.phy_x, 2), round(to_y - self.phy_y, 2)))
