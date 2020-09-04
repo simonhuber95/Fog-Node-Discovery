@@ -16,18 +16,19 @@ env = simpy.Environment()
 # Reading Clients from Open Berlin Scenario XML
 client_data = et.parse(client_path)
 
+
+print("Init Fog Nodes")
+for node_id in range(1, amount_nodes+1):
+    node = FogNode(env, id=node_id, discovery_protocol={}, network={}, slots=1)
+    nodes.append(node)
+
 # Looping over the first x entries
 print("Init Mobile Clients")
 for client in client_data.getroot().findall('person')[:amount_clients]:
     client_id = client.get("id")
     client_plan = client.find("plan")
-    client = MobileClient(env, id = client_id, plan = client_plan)
+    client = MobileClient(env, id=client_id, plan=client_plan, network = nodes)
     clients.append(client)
 
-print("Init Fog Nodes")
-for node_id in range(1, amount_nodes+1):
-    node = FogNode(env, id = node_id, discovery_protocol={}, network = {}, slots = 1)
-    nodes.append(node)
-    
 # Run Simulation
-env.run(until=2500)
+env.run(until=10)

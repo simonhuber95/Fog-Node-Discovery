@@ -1,13 +1,15 @@
 import math
 import simpy
+import random
 from geopy import distance as geo_distance
 
 
 class MobileClient(object):
-    def __init__(self, env, id, plan):
+    def __init__(self, env, id, plan, network):
         self.env = env
         self.id = id
         self.plan = plan
+        self.network = network
         # set coordinates to first activity in plan
         self.phy_x = float(plan.find('activity').attrib["x"])
         self.phy_y = float(plan.find('activity').attrib["y"])
@@ -15,25 +17,18 @@ class MobileClient(object):
         self.pairs = zip(plan.findall('activity')[1:], plan.findall('leg'))
         self.virt_x = 0
         self.virt_y = 0
-        print("Mobile client {} active, current location x: {}, y: {}".format(self.id, self.phy_x, self.phy_y))
+        print("Mobile client {} active, current location x: {}, y: {}".format(
+            self.id, self.phy_x, self.phy_y))
       # Start the run process everytime an instance is created.
         self.action = env.process(self.run())
+        self.connected_node = False
 
     def run(self):
         print("Client {} starting".format(self.id))
+        node = self.probe_network()
+        print("Nearest node is {}".format(node.id))
         for activity, leg in self.pairs:
-            entry = {}
-            # Setting the physical end x coordinate from the following activity
-            entry['x'] = float(activity.attrib['x'])
-            # Setting the physical end y coordinate from the following activty
-            entry['y'] = float(activity.attrib['y'])
-            # retrieving the route from the leg node
-            route = leg.find('route')
-            # Setting the travel time in seconds
-            duration = route.attrib['trav_time']
-            entry['trav_time'] = sum(x * int(t) for x, t in zip([3600, 60, 1], duration.split(":"))) 
-            # Setting the distance as float in meters
-            entry['distance'] = float(route.attrib['distance'])
+            entry = self.get_entry_from_data(activity = activity, leg = leg)
             print(entry)
             yield self.env.process(self.move(entry['x'], entry['y'], entry['trav_time'], entry['distance']))
 
@@ -50,8 +45,37 @@ class MobileClient(object):
             self.phy_x += vel_x
             self.phy_y += vel_y
 
+            if (self.connected_node == False):
+                self.probe_network()
             yield self.env.timeout(1)
-        
+
             # print("Timestep: {} Client id: {} x:{:.2f} y:{:.2f}".format(
             #     self.env.now, self.id, self.phy_x, self.phy_y))
             # print("Delta x: {}, Delta y: {}".format(round(to_x - self.phy_x, 2), round(to_y - self.phy_y, 2)))
+
+    def probe_network(self):
+        # Emit Event to any node of the Fog Network to retrieve closest node
+        node = random.choice(self.network)
+        node.probe_event.trigger()
+        return node
+
+    def connect(self, node_id):
+        # Connect to closest node of the Fog Network
+        print("ToDo")
+        
+    def get_entry_from_data(self, activity, leg):
+        entry = {}
+        # Setting the physical end x coordinate from the following activity
+        entry['x'] = float(activity.attrib['x'])
+        # Setting the physical end y coordinate from the following activty
+        entry['y'] = float(activity.attrib['y'])
+        # retrieving the route from the leg node
+        route = leg.find('route')
+        # Setting the travel time in seconds
+        duration = route.attrib['trav_time']
+        entry['trav_time'] = sum(
+            x * int(t) for x, t in zip([3600, 60, 1], duration.split(":")))
+        # Setting the distance as float in meters
+        entry['distance'] = float(route.attrib['distance'])
+        return entry
+        
