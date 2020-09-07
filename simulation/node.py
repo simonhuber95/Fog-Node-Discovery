@@ -6,7 +6,6 @@ class FogNode(object):
         self.env = env
         self.id = id
         self.discovery_protocol = discovery_protocol
-        self.network = network
         self.resource = Resource(env, slots)
         self.probe_event = env.event()
         self.connect_event = env.event()

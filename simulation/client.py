@@ -9,7 +9,6 @@ class MobileClient(object):
         self.env = env
         self.id = id
         self.plan = plan
-        self.network = network
         self.connected = False
         self.msg_pipe = simpy.Store(env)
         # Set coordinates to first activity in plan
@@ -29,10 +28,10 @@ class MobileClient(object):
         print("Client {}: starting".format(self.id))
         # Finding closest node process from by connecting to random node
         closest_node = yield self.env.process(self.req_closest_node())
-        
+
         # Connecting to closest node
         yield self.env.process(self.connect(closest_node))
-        
+
         # Iterate through every leg & activity in seperate process
         for activity, leg in self.pairs:
             entry = self.get_entry_from_data(activity=activity, leg=leg)
@@ -65,7 +64,7 @@ class MobileClient(object):
         while(not self.connected):
             # Emit Event to any node of the Fog Network to retrieve closest node
             print("Client {}: Probing network".format(self.id))
-            node = random.choice(self.network)
+            node = self.env.getNode(random.choice(range(1, len(self.env.nodes)+1)))
             node.probe_event.succeed(
                 {"client_id": self.id, "msg_pipe": self.msg_pipe})
             node.probe_event = self.env.event()
