@@ -11,7 +11,7 @@ class MobileClient(object):
         self.plan = plan
         self.network = network
         self.msg_pipe = simpy.Store(env)
-        # set coordinates to first activity in plan
+        # Set coordinates to first activity in plan
         self.phy_x = float(plan.find('activity').attrib["x"])
         self.phy_y = float(plan.find('activity').attrib["y"])
         # Zip all activities and legs into pairs (except for initial activity used for init coordinates)
@@ -26,8 +26,11 @@ class MobileClient(object):
 
     def run(self):
         print("Client {}: starting".format(self.id))
-        node = self.probe_network()
-        print("Client {}: Nearest node is {}".format(self.id, node.id))
+        # Probing random Node to retrieve closest node
+        clostest_node = self.probe_network()
+        
+        print("Client {}: Nearest node is {}".format(self.id, clostest_node))
+        # Iterate through every leg & activity
         for activity, leg in self.pairs:
             entry = self.get_entry_from_data(activity=activity, leg=leg)
             print(entry)
@@ -62,7 +65,9 @@ class MobileClient(object):
         node.probe_event.succeed(
             {"client_id": self.id, "msg_pipe": self.msg_pipe})
         node.probe_event = self.env.event()
-        return node
+        # Receiving Message from radnom node
+        in_msg = self.msg_pipe.get()
+        return in_msg
 
     def connect(self, node_id):
         # Connect to closest node of the Fog Network
