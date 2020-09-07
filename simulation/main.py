@@ -19,7 +19,7 @@ client_data = et.parse(client_path)
 
 print("Init Fog Nodes")
 for node_id in range(1, amount_nodes+1):
-    node = FogNode(env, id=node_id, discovery_protocol={}, network={}, slots=1)
+    node = FogNode(env, id=node_id, discovery_protocol={}, network = nodes, slots=1)
     nodes.append(node)
 
 # Looping over the first x entries
