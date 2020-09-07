@@ -17,18 +17,18 @@ class MobileClient(object):
         self.pairs = zip(plan.findall('activity')[1:], plan.findall('leg'))
         self.virt_x = 0
         self.virt_y = 0
-        print("Mobile client {} active, current location x: {}, y: {}".format(
+        print("Client {}: active, current location x: {}, y: {}".format(
             self.id, self.phy_x, self.phy_y))
-      # Start the run process everytime an instance is created.
+        # Start the run process everytime an instance is created.
         self.action = env.process(self.run())
         self.connected_node = False
 
     def run(self):
-        print("Client {} starting".format(self.id))
+        print("Client {}: starting".format(self.id))
         node = self.probe_network()
-        print("Nearest node is {}".format(node.id))
+        print("Client {}: Nearest node is {}".format(self.id, node.id))
         for activity, leg in self.pairs:
-            entry = self.get_entry_from_data(activity = activity, leg = leg)
+            entry = self.get_entry_from_data(activity=activity, leg=leg)
             print(entry)
             yield self.env.process(self.move(entry['x'], entry['y'], entry['trav_time'], entry['distance']))
 
@@ -45,8 +45,9 @@ class MobileClient(object):
             self.phy_x += vel_x
             self.phy_y += vel_y
 
-            if (self.connected_node == False):
-                self.probe_network()
+            # if (self.connected_node == False):
+                # self.probe_network() ToDo
+                # print("Client {}: Not connected to network".format(self.id))
             yield self.env.timeout(1)
 
             # print("Timestep: {} Client id: {} x:{:.2f} y:{:.2f}".format(
@@ -55,14 +56,16 @@ class MobileClient(object):
 
     def probe_network(self):
         # Emit Event to any node of the Fog Network to retrieve closest node
+        print("Client {}: Probing network".format(self.id))
         node = random.choice(self.network)
-        node.probe_event.trigger()
+        node.probe_event.succeed(self.id)
+        node.probe_event = self.env.event()
         return node
 
     def connect(self, node_id):
         # Connect to closest node of the Fog Network
         print("ToDo")
-        
+
     def get_entry_from_data(self, activity, leg):
         entry = {}
         # Setting the physical end x coordinate from the following activity
@@ -78,4 +81,3 @@ class MobileClient(object):
         # Setting the distance as float in meters
         entry['distance'] = float(route.attrib['distance'])
         return entry
-        

@@ -17,15 +17,17 @@ class FogNode(object):
 
     def run(self):
         while True:
-            if (yield self.probe_event):
-                print("looking for nearest node")
-            if (yield self.connect_event):
-                print("connecting to node")
+            yield self.probe_event
+            print("Node {}: Looking for nearest node".format(self.id))
+            yield self.connect_event
+            print("Node {}: Connection to client".format(self.id))
+            yield self.env.timeout(1)
 
     def connect(self, client):
-        with self.resource.request as req:
-            yield req
-            yield self.env.timeout(1)
+        # with self.resource.request as req:
+        #    yield req
+        #    yield self.env.timeout(1)
+        print("ToDo")
 
     # returns closest node relative to client
     def get_closest(self, client):
