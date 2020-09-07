@@ -17,7 +17,9 @@ class FogNode(object):
 
     def run(self):
         while True:
-            yield self.probe_event
+            req = yield self.probe_event
+            msg_pipe = req["msg_pipe"]
+            msg_pipe.put("test")
             print("Node {}: Looking for nearest node".format(self.id))
             yield self.connect_event
             print("Node {}: Connection to client".format(self.id))

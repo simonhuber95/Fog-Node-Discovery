@@ -10,6 +10,7 @@ class MobileClient(object):
         self.id = id
         self.plan = plan
         self.network = network
+        self.msg_pipe = simpy.Store(env)
         # set coordinates to first activity in plan
         self.phy_x = float(plan.find('activity').attrib["x"])
         self.phy_y = float(plan.find('activity').attrib["y"])
@@ -46,8 +47,8 @@ class MobileClient(object):
             self.phy_y += vel_y
 
             # if (self.connected_node == False):
-                # self.probe_network() ToDo
-                # print("Client {}: Not connected to network".format(self.id))
+            # self.probe_network() ToDo
+            # print("Client {}: Not connected to network".format(self.id))
             yield self.env.timeout(1)
 
             # print("Timestep: {} Client id: {} x:{:.2f} y:{:.2f}".format(
@@ -58,7 +59,8 @@ class MobileClient(object):
         # Emit Event to any node of the Fog Network to retrieve closest node
         print("Client {}: Probing network".format(self.id))
         node = random.choice(self.network)
-        node.probe_event.succeed(self.id)
+        node.probe_event.succeed(
+            {"client_id": self.id, "msg_pipe": self.msg_pipe})
         node.probe_event = self.env.event()
         return node
 
