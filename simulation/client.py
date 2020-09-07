@@ -5,11 +5,12 @@ from geopy import distance as geo_distance
 
 
 class MobileClient(object):
-    def __init__(self, env, id, plan, network):
+    def __init__(self, env, id, plan):
         self.env = env
         self.id = id
         self.plan = plan
         self.network = network
+        self.connected = False
         self.msg_pipe = simpy.Store(env)
         # Set coordinates to first activity in plan
         self.phy_x = float(plan.find('activity').attrib["x"])
@@ -26,11 +27,13 @@ class MobileClient(object):
 
     def run(self):
         print("Client {}: starting".format(self.id))
-        # Probing random Node to retrieve closest node
-        clostest_node = self.probe_network()
+        # Finding closest node process from by connecting to random node
+        closest_node = yield self.env.process(self.req_closest_node())
         
-        print("Client {}: Nearest node is {}".format(self.id, clostest_node))
-        # Iterate through every leg & activity
+        # Connecting to closest node
+        yield self.env.process(self.connect(closest_node))
+        
+        # Iterate through every leg & activity in seperate process
         for activity, leg in self.pairs:
             entry = self.get_entry_from_data(activity=activity, leg=leg)
             print(entry)
@@ -50,7 +53,7 @@ class MobileClient(object):
             self.phy_y += vel_y
 
             # if (self.connected_node == False):
-            # self.probe_network() ToDo
+            # self.req_closest_node() ToDo
             # print("Client {}: Not connected to network".format(self.id))
             yield self.env.timeout(1)
 
@@ -58,16 +61,17 @@ class MobileClient(object):
             #     self.env.now, self.id, self.phy_x, self.phy_y))
             # print("Delta x: {}, Delta y: {}".format(round(to_x - self.phy_x, 2), round(to_y - self.phy_y, 2)))
 
-    def probe_network(self):
-        # Emit Event to any node of the Fog Network to retrieve closest node
-        print("Client {}: Probing network".format(self.id))
-        node = random.choice(self.network)
-        node.probe_event.succeed(
-            {"client_id": self.id, "msg_pipe": self.msg_pipe})
-        node.probe_event = self.env.event()
-        # Receiving Message from radnom node
-        in_msg = self.msg_pipe.get()
-        return in_msg
+    def req_closest_node(self):
+        while(not self.connected):
+            # Emit Event to any node of the Fog Network to retrieve closest node
+            print("Client {}: Probing network".format(self.id))
+            node = random.choice(self.network)
+            node.probe_event.succeed(
+                {"client_id": self.id, "msg_pipe": self.msg_pipe})
+            node.probe_event = self.env.event()
+            # Receiving Message from radnom node
+            in_msg = yield self.msg_pipe.get()
+            print("Client {}: Nearest node is {}".format(self.id, in_msg))
 
     def connect(self, node_id):
         # Connect to closest node of the Fog Network

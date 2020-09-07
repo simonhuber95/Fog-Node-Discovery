@@ -2,7 +2,7 @@ from simpy import Resource
 
 
 class FogNode(object):
-    def __init__(self, env, id, discovery_protocol, network, slots):
+    def __init__(self, env, id, discovery_protocol, slots):
         self.env = env
         self.id = id
         self.discovery_protocol = discovery_protocol
