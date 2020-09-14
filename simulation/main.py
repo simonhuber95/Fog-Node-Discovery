@@ -16,26 +16,42 @@ env = simpy.Environment()
 env.clients = []
 env.nodes = []
 
-# Getter for Nodes in the network
-# returns the Node object with the given ID
-env.getNode = lambda node_id: next(
-    (node for node in env.nodes if node["id"] == node_id), None)["obj"]
 
-# Getter for Clients in the network
-# returns the Client object with the given ID
-env.getClient = lambda client_id: next(
-    (client for client in env.clients if client["id"] == client_id), None)["obj"]
+def get_participant(id):
+    """
+    Getter for all participants in the network
+    Parameter ID as string
+    Returns the participant object for the given ID
+    """
+    return next((elem for elem in [*env.clients, *env.nodes] if elem["id"] == id), None)["obj"]
 
-# Getter for all participants in the network
-# returns the participant object with the given ID
-env.getParticipant = lambda id: next(
-    (elem for elem in [*env.clients, *env.nodes] if elem["id"] == id), None)["obj"]
 
-# Returns id of random fog node
-env.getRandomNode = lambda: random.choice(env.nodes)["id"]
+def get_random_node():
+    """
+    Returns ID of random fog node
+    """
+    return random.choice(env.nodes)["id"]
 
+
+def send_message(send_id, rec_id, msg):
+    """
+    Parameter send_id as string: ID of sender
+    Paramater rec_id as string: ID of recipient
+    Parameter msg as string: Message to be send
+    """
+    env.getParticipant(rec_id).msg_pipe.put({"send_id": send_id, "msg": msg})
+
+
+# Assign functions to Environment Object
+env.getParticipant = get_participant
+env.getRandomNode = get_random_node
+env.sendMessage = send_message
 # Message interface for Nodes and clients
-env.sendMessage = lambda send_id, rec_id, msg: env.getParticipant(rec_id).msg_pipe.put({"send_id": send_id, "msg":msg})
+
+
+def test(send_id, rec_id, msg): return env.getParticipant(
+    rec_id).msg_pipe.put({"send_id": send_id, "msg": msg})
+
 
 # Reading Clients from Open Berlin Scenario XML
 client_data = et.parse(client_path)

@@ -77,7 +77,7 @@ class MobileClient(object):
             print("Client {}: starting Connection Process".format(self.id))
             # Connect to closest node of the Fog Network
             self.env.sendMessage(self.id, self.env.getRandomNode(), "Test Message")
-            yield self.env.timeout(1)
+            yield self.env.timeout(10)
 
     def get_entry_from_data(self, activity, leg):
         entry = {}
