@@ -3,6 +3,7 @@ from client import MobileClient
 from node import FogNode
 import xml.etree.ElementTree as et
 import uuid
+import random
 
 client_path = "./data/berlin-v5.4-1pct.plans.xml"
 amount_clients = 1
@@ -30,8 +31,11 @@ env.getClient = lambda client_id: next(
 env.getParticipant = lambda id: next(
     (elem for elem in [*env.clients, *env.nodes] if elem["id"] == id), None)["obj"]
 
+# Returns id of random fog node
+env.getRandomNode = lambda: random.choice(env.nodes)["id"]
+
 # Message interface for Nodes and clients
-env.sendMessage = lambda send_id, rec_id, msg: env.getParticipant(rec_id).msg_pipe.put({"sender": send_id, "msg":msg)
+env.sendMessage = lambda send_id, rec_id, msg: env.getParticipant(rec_id).msg_pipe.put({"send_id": send_id, "msg":msg})
 
 # Reading Clients from Open Berlin Scenario XML
 client_data = et.parse(client_path)

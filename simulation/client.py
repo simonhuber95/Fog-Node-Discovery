@@ -26,7 +26,7 @@ class MobileClient(object):
         
         # Starting the operating processes
         self.connect_process = self.env.process(self.connect())
-        self.request_process = self.env.process(self.req_closest_node())
+        # self.request_process = self.env.process(self.req_closest_node())
         self.move_process = self.env.process(self.move())    
         
     def move(self):
@@ -75,7 +75,7 @@ class MobileClient(object):
     def connect(self):
         print("Client {}: starting Connection Process".format(self.id))
         # Connect to closest node of the Fog Network
-        print("ToDo")
+        self.env.sendMessage(self.id, self.n)
         yield self.env.timeout(1)
 
     def get_entry_from_data(self, activity, leg):

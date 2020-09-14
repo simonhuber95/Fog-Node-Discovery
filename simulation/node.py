@@ -16,13 +16,14 @@ class FogNode(object):
         # Start the run process everytime an instance is created.
  
         self.connect_process = env.process(self.connect())
-        self.slosest_node_process = env.process(self.get_closest_node())
+        # self.closest_node_process = env.process(self.get_closest_node())
         print("Fog Node {} active".format(self.id))
 
 
     def connect(self):
-        yield self.connect_event
-        print("Node {}: Connection to client".format(self.id))
+        while True:
+            msg = yield self.msg_pipe.get()
+            print("Node {}: Message from client {}: {}".format(self.id, msg["send_id"], msg["msg"]))
 
 
     # returns closest node relative to client
