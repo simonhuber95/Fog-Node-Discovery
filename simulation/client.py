@@ -54,8 +54,8 @@ class MobileClient(object):
 
                 yield self.env.timeout(1)
 
-                print("Timestep: {} Client id: {} x:{:.2f} y:{:.2f}".format(
-                    self.env.now, self.id, self.phy_x, self.phy_y))
+                # print("Timestep: {} Client id: {} x:{:.2f} y:{:.2f}".format(
+                #     self.env.now, self.id, self.phy_x, self.phy_y))
                 # print("Delta x: {}, Delta y: {}".format(round(to_x - self.phy_x, 2), round(to_y - self.phy_y, 2)))
 
     def req_closest_node(self):
