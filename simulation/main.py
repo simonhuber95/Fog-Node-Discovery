@@ -40,9 +40,10 @@ def send_message(send_id, rec_id, msg):
     Paramater rec_id as string: ID of recipient
     Parameter msg as string: Message to be send
     """
-    latency = env.getLatency
-    yield env.timeout(latency)
-    env.getParticipant(rec_id).msg_pipe.put({"send_id": send_id, "timestamp": env.now, "msg": msg})
+    latency = env.getLatency(send_id, rec_id)
+    env.getParticipant(rec_id).msg_pipe.put(
+        {"send_id": send_id, "timestamp": env.now, "msg": msg, "latency": latency})
+
 
 def get_latency(send_id, rec_id):
     """
@@ -53,8 +54,9 @@ def get_latency(send_id, rec_id):
     sender = env.getParticipant(send_id)
     receiver = env.getParticipant(rec_id)
     # distance = math.sqrt((receiver.phy_x - sender.phy_x)**2 + (receiver.phy_y - sender.phy_y)**2)
-    
-    return random.randint(0,100)/100
+
+    return random.randint(0, 100)/100
+
 
 # Assign functions to Environment Object
 env.getParticipant = get_participant
@@ -86,4 +88,4 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
     env.clients.append({"id": client_id, "obj": client})
 
 # Run Simulation
-env.run(until=10)
+env.run(until=30)

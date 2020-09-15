@@ -38,7 +38,6 @@ class MobileClient(object):
             distance = entry['distance']
             to_x = entry['x']
             to_y = entry['y']
-            print(entry)
 
             # Calculating the deltas in each direction
             # the order is (latitude, longitude) or (y, x) in Cartesian terms
