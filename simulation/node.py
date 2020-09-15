@@ -1,6 +1,6 @@
 import simpy
 from simpy import Resource
-
+import random
 
 
 class FogNode(object):
@@ -23,7 +23,7 @@ class FogNode(object):
     def connect(self):
         while True:
             msg = yield self.msg_pipe.get()
-            print("Node {}: Message from client {}: {}".format(self.id, msg["send_id"], msg["msg"]))
+            print("Node {}: Message from client {} at {}: {}".format(self.id, msg["send_id"], msg["timestamp"], msg["msg"]))
 
 
     # returns closest node relative to client

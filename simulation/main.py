@@ -4,6 +4,7 @@ from node import FogNode
 import xml.etree.ElementTree as et
 import uuid
 import random
+import math
 
 client_path = "./data/berlin-v5.4-1pct.plans.xml"
 amount_clients = 1
@@ -39,13 +40,27 @@ def send_message(send_id, rec_id, msg):
     Paramater rec_id as string: ID of recipient
     Parameter msg as string: Message to be send
     """
-    env.getParticipant(rec_id).msg_pipe.put({"send_id": send_id, "msg": msg})
+    latency = env.getLatency
+    yield env.timeout(latency)
+    env.getParticipant(rec_id).msg_pipe.put({"send_id": send_id, "timestamp": env.now, "msg": msg})
 
+def get_latency(send_id, rec_id):
+    """
+    Parameter send_id as string: ID of sender
+    Paramater rec_id as string: ID of recipient
+    Returns float: Latency in seconds
+    """
+    sender = env.getParticipant(send_id)
+    receiver = env.getParticipant(rec_id)
+    # distance = math.sqrt((receiver.phy_x - sender.phy_x)**2 + (receiver.phy_y - sender.phy_y)**2)
+    
+    return random.randint(0,100)/100
 
 # Assign functions to Environment Object
 env.getParticipant = get_participant
 env.getRandomNode = get_random_node
 env.sendMessage = send_message
+env.getLatency = get_latency
 # Message interface for Nodes and clients
 
 
