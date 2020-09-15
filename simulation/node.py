@@ -23,9 +23,10 @@ class FogNode(object):
     def connect(self):
         while True:
             msg = yield self.msg_pipe.get()
+            # waiting the given latency
             yield self.env.timeout(msg["latency"])
             print("Node {}: Message from client {} at {} from {}: {}".format(self.id, msg["send_id"], self.env.now, msg["timestamp"], msg["msg"]))
-
+            self.env.sendMessage(self.id, msg["send_id"], "Node {} answered".format(self.id))
 
     # returns closest node relative to client
     def get_closest_node(self):

@@ -73,11 +73,15 @@ class MobileClient(object):
 
     def connect(self):
         while (True):
-            print("Client {}: starting Connection Process".format(self.id))
+            # print("Client {}: starting Connection Process".format(self.id))
             # Connect to closest node of the Fog Network
-            self.env.sendMessage(self.id, self.env.getRandomNode(), "Test Message")
-            yield self.env.timeout(10)
-
+            self.env.sendMessage(self.id, self.env.getRandomNode(), "Client {} requests".format(self.id))
+            msg = yield self.msg_pipe.get()
+            yield self.env.timeout(msg["latency"])
+            print("Client {}: Message from Node {} at {} from {}: {}".format(self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
+            yield self.env.timeout(random.randint(0,5))
+            
+            
     def get_entry_from_data(self, activity, leg):
         entry = {}
         # Setting the physical end x coordinate from the following activity
