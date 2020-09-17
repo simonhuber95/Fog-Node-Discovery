@@ -10,6 +10,8 @@ class MobileClient(object):
         self.id = id
         self.plan = plan
         self.connected = False
+        # ID of closest node as string
+        self.closest_node = ""
         # Event triggers search for closest node
         self.req_node_event = env.event()
         self.msg_pipe = simpy.Store(env)
@@ -22,11 +24,9 @@ class MobileClient(object):
         self.virt_y = 0
         print("Client {}: active, current location x: {}, y: {}".format(
             self.id, self.phy_x, self.phy_y))
-        self.connected_node = False
-        
         # Starting the operating processes
+        self.request_process = self.env.process(self.req_closest_node())
         self.connect_process = self.env.process(self.connect())
-        # self.request_process = self.env.process(self.req_closest_node())
         self.move_process = self.env.process(self.move())    
         
     def move(self):
@@ -63,22 +63,28 @@ class MobileClient(object):
             yield self.req_node_event # passivate the search for closest node. Is triggered if reconnection Criteria is fullfilled
             # Emit Event to any node of the Fog Network to retrieve closest node
             print("Client {}: Probing network".format(self.id))
-            node = self.env.getNode(random.choice(range(1, len(self.env.nodes)+1)))
-            node.probe_event.succeed(
-                {"client_id": self.id, "msg_pipe": self.msg_pipe})
-            node.probe_event = self.env.event()
+            random_node = self.env.getRandomNode()
+            self.env.sendMessage(self.id, random_node, "Request Closest node", msg_type = 2)
             # Receiving Message from random node
-            in_msg = yield self.msg_pipe.get()
-            print("Client {}: Nearest node is {}".format(self.id, in_msg))
+            msg = yield self.msg_pipe.get()
+            print("Client {}: Nearest node is {}".format(self.id, msg["msg"]))
+            self.closest_node = msg["msg"]
 
     def connect(self):
         while (True):
-            # print("Client {}: starting Connection Process".format(self.id))
             # Connect to closest node of the Fog Network
-            self.env.sendMessage(self.id, self.env.getRandomNode(), "Client {} requests".format(self.id))
-            msg = yield self.msg_pipe.get()
-            yield self.env.timeout(msg["latency"])
-            print("Client {}: Message from Node {} at {} from {}: {}".format(self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
+            # If no node is registered, trigger the event to search for the closest node
+            if(not self.closest_node):
+                print("No node registered, trigger node request")
+                self.req_node_event.succeed()
+                self.req_node_event = self.env.event()
+            # If closest node is registered, send messages to node
+            else:
+                self.env.sendMessage(self.id, self.closest_node, "Client {} sends a task".format(self.id))
+                msg = yield self.msg_pipe.get()
+                # Waiting the given latency
+                yield self.env.timeout(msg["latency"])
+                print("Client {}: Message from Node {} at {} from {}: {}".format(self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
             yield self.env.timeout(random.randint(0,5))
             
             

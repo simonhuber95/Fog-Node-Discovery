@@ -16,7 +16,7 @@ class FogNode(object):
         # Start the run process everytime an instance is created.
  
         self.connect_process = env.process(self.connect())
-        # self.closest_node_process = env.process(self.get_closest_node())
+        self.closest_node_process = env.process(self.get_closest_node())
         print("Fog Node {} active".format(self.id))
 
 
@@ -25,10 +25,9 @@ class FogNode(object):
             msg = yield self.msg_pipe.get()
             # waiting the given latency
             yield self.env.timeout(msg["latency"])
-            print("Node {}: Message from client {} at {} from {}: {}".format(self.id, msg["send_id"], self.env.now, msg["timestamp"], msg["msg"]))
-            self.env.sendMessage(self.id, msg["send_id"], "Node {} answered".format(self.id))
-            # Trigger search for closest node via event 
-            if(msg["msg"] == "Request Closest node"):
+            print("Node {}: Message type {} from client {} at {} from {}: {}".format(self.id, msg["msg_type"], msg["send_id"], self.env.now, msg["timestamp"], msg["msg"]))
+            # Message type 2 = Node Request -> Trigger search for closest node via event 
+            if(msg["msg_type"] == 2):
                 self.probe_event.succeed(msg["send_id"])
                 self.probe_event = self.env.event()
             else:
@@ -39,6 +38,6 @@ class FogNode(object):
         while True:
             client_id = yield self.probe_event
             # Closest Node Discovery to be implemented here
-            closest_node_id = random.choice(self.env.nodes["id"])
+            closest_node_id = self.env.getRandomNode()
             self.env.sendMessage(self.id, client_id, closest_node_id)
       
