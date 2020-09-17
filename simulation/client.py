@@ -72,9 +72,8 @@ class MobileClient(object):
 
     def connect(self):
         while (True):
-            # Connect to closest node of the Fog Network
-            # If no node is registered, trigger the event to search for the closest node
-            if(not self.closest_node):
+            # If no node is registered or connection not valid, trigger the event to search for the closest node
+            if(not self.closest_node or not self.connection_valid):
                 print("No node registered, trigger node request")
                 self.req_node_event.succeed()
                 self.req_node_event = self.env.event()
@@ -88,6 +87,13 @@ class MobileClient(object):
             yield self.env.timeout(random.randint(0,5))
             
             
+    def connection_valid(self):
+        """
+        Checks if the connection to the current Node is Valid 
+        Returns boolean if valod or not
+        """
+        return random.choice([True, False])
+        
     def get_entry_from_data(self, activity, leg):
         entry = {}
         # Setting the physical end x coordinate from the following activity

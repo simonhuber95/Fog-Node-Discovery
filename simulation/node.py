@@ -39,5 +39,5 @@ class FogNode(object):
             client_id = yield self.probe_event
             # Closest Node Discovery to be implemented here
             closest_node_id = self.env.getRandomNode()
-            self.env.sendMessage(self.id, client_id, closest_node_id)
+            self.env.sendMessage(self.id, client_id, closest_node_id, msg_type = 2)
       

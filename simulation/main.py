@@ -34,13 +34,13 @@ def get_random_node():
     return random.choice(env.nodes)["id"]
 
 
-def send_message(send_id, rec_id, msg, msg_type = 1):
+def send_message(send_id, rec_id, msg, msg_type=1):
     """
     Parameter send_id as string: ID of sender
     Paramater rec_id as string: ID of recipient
     Parameter msg as string: Message to be send
-    Parameter msg_type as int *optional: type of message -> 1: regular message (default), 2: Closest node request
-    
+    Parameter msg_type as int *optional: type of message -> 1: regular message (default), 2: Closest node request, 3: Node discovery
+
     Not complete. env.timeout() is not working for some reason, so the delay has to be awaited at recipient
     """
     latency = env.getLatency(send_id, rec_id)
