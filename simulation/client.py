@@ -11,10 +11,11 @@ class MobileClient(object):
         self.plan = plan
         self.connected = False
         # ID of closest node as string
-        self.closest_node = ""
+        self.closest_node_id = ""
         # Event triggers search for closest node
         self.req_node_event = env.event()
         self.msg_pipe = simpy.Store(env)
+        self.msg_history = []
         # Set coordinates to first activity in plan
         self.phy_x = float(plan.find('activity').attrib["x"])
         self.phy_y = float(plan.find('activity').attrib["y"])
@@ -67,20 +68,23 @@ class MobileClient(object):
             self.env.sendMessage(self.id, random_node, "Request Closest node", msg_type = 2)
             # Receiving Message from random node
             msg = yield self.msg_pipe.get()
+            # Append message to history
+            self.msg_history.append(msg)
             print("Client {}: Nearest node is {}".format(self.id, msg["msg"]))
-            self.closest_node = msg["msg"]
+            self.closest_node_id = msg["msg"]
 
     def connect(self):
         while (True):
             # If no node is registered or connection not valid, trigger the event to search for the closest node
-            if(not self.closest_node or not self.connection_valid):
-                print("No node registered, trigger node request")
+            if(not self.closest_node_id or not self.connection_valid()):
                 self.req_node_event.succeed()
                 self.req_node_event = self.env.event()
             # If closest node is registered, send messages to node
             else:
-                self.env.sendMessage(self.id, self.closest_node, "Client {} sends a task".format(self.id))
+                self.env.sendMessage(self.id, self.closest_node_id, "Client {} sends a task".format(self.id))
                 msg = yield self.msg_pipe.get()
+                # Append message to history
+                self.msg_history.append(msg)
                 # Waiting the given latency
                 yield self.env.timeout(msg["latency"])
                 print("Client {}: Message from Node {} at {} from {}: {}".format(self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
@@ -92,7 +96,9 @@ class MobileClient(object):
         Checks if the connection to the current Node is Valid 
         Returns boolean if valod or not
         """
-        return random.choice([True, False])
+        latency = self.env.getLatency(self.id, self.closest_node_id)
+        return True if latency < 0.7 else False
+    
         
     def get_entry_from_data(self, activity, leg):
         entry = {}
