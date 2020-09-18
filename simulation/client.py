@@ -15,7 +15,8 @@ class MobileClient(object):
         # Event triggers search for closest node
         self.req_node_event = env.event()
         self.msg_pipe = simpy.FilterStore(env)
-        self.msg_history = []
+        self.in_msg_history = []
+        self.out_msg_history = []
         # Set coordinates to first activity in plan
         self.phy_x = float(plan.find('activity').attrib["x"])
         self.phy_y = float(plan.find('activity').attrib["y"])
@@ -64,8 +65,9 @@ class MobileClient(object):
             if(not self.closest_node_id or not self.connection_valid()):
                 print("Client {}: Probing network".format(self.id))
                 random_node = self.env.getRandomNode()
-                self.env.sendMessage(self.id, random_node,
+                out_msg = self.env.sendMessage(self.id, random_node,
                                      "Request Closest node", msg_type=2)
+                self.out_msg_history.append(out)
             # If closest node is registered, send messages to node
             else:
                 self.env.sendMessage(
@@ -79,7 +81,7 @@ class MobileClient(object):
             # Waiting the given latency
             yield self.env.timeout(msg["latency"])
             # Append message to history
-            self.msg_history.append(msg)
+            self.in_msg_history.append(msg)
             # Extracting message Type
             msg_type = msg["msg_type"]
             # Standard task message
