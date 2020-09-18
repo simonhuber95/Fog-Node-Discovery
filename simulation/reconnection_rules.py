@@ -31,8 +31,12 @@ class ReconnectionRules(object):
             boolean: Whether the roundtrip time is lower than the threshold
         """
         last_in_msg = in_history[-1]
-        last_sender = last_in_msg["send_id"]
-        out_msg = list(filter(lambda message: message["rec_id"] == last_sender, out_history))[-1]
+        msg_id = last_in_msg["msg_id"]
+        out_msg = next((message for message in out_history if message["msg_id"] == msg_id), None)
+        # Message has not come back so RTT cannot be calculated
+        if(not out_msg):
+            return True
+        
         roundtrip_time = last_in_msg["timestamp"] - out_msg["timestamp"]
         return True if roundtrip_time < threshold else False
     

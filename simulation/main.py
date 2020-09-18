@@ -34,7 +34,7 @@ def get_random_node():
     return random.choice(env.nodes)["id"]
 
 
-def send_message(send_id, rec_id, msg, msg_type=1, msg_id = uuid.uuid4()):
+def send_message(send_id, rec_id, msg, msg_type=1, msg_id = None):
     """
     Parameter send_id as string: ID of sender
     Paramater rec_id as string: ID of recipient
@@ -43,6 +43,10 @@ def send_message(send_id, rec_id, msg, msg_type=1, msg_id = uuid.uuid4()):
 
     Not complete. env.timeout() is not working for some reason, so the delay has to be awaited at recipient
     """
+    # Create new message ID if none is given
+    if not msg_id:
+        msg_id = uuid.uuid4()
+    
     latency = env.getLatency(send_id, rec_id)
     # yield env.timeout(latency)
     message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id, "timestamp": env.now, "msg": msg, "msg_type": msg_type, "latency": latency}

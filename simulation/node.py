@@ -34,7 +34,7 @@ class FogNode(object):
                 self.probe_event.succeed(in_msg)
                 self.probe_event = self.env.event()
             else:
-                out_msg = self.env.sendMessage(self.id, in_msg["send_id"], "Reply from node")
+                out_msg = self.env.sendMessage(self.id, in_msg["send_id"], "Reply from node", msg_id = in_msg["msg_id"])
                 self.out_msg_history.append(out_msg)
 
     # returns closest node relative to client
