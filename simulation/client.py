@@ -67,7 +67,7 @@ class MobileClient(object):
                 random_node = self.env.getRandomNode()
                 out_msg = self.env.sendMessage(self.id, random_node,
                                      "Request Closest node", msg_type=2)
-                self.out_msg_history.append(out)
+                self.out_msg_history.append(out_msg)
             # If closest node is registered, send messages to node
             else:
                 self.env.sendMessage(
