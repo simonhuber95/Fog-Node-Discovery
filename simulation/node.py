@@ -12,6 +12,8 @@ class FogNode(object):
         self.msg_pipe = simpy.Store(env)
         self.probe_event = env.event()
         self.connect_event = env.event()
+        self.in_msg_history = []
+        self.out_msg_history = []
 
         # Start the run process everytime an instance is created.
  
@@ -22,22 +24,26 @@ class FogNode(object):
 
     def connect(self):
         while True:
-            msg = yield self.msg_pipe.get()
+            in_msg = yield self.msg_pipe.get()
+            self.in_msg_history.append(in_msg)
             # waiting the given latency
-            yield self.env.timeout(msg["latency"])
-            print("Node {}: Message type {} from client {} at {} from {}: {}".format(self.id, msg["msg_type"], msg["send_id"], self.env.now, msg["timestamp"], msg["msg"]))
+            yield self.env.timeout(in_msg["latency"])
+            print("Node {}: Message type {} from client {} at {} from {}: {}".format(self.id, in_msg["msg_type"], in_msg["send_id"], self.env.now, in_msg["timestamp"], in_msg["msg"]))
             # Message type 2 = Node Request -> Trigger search for closest node via event 
-            if(msg["msg_type"] == 2):
-                self.probe_event.succeed(msg["send_id"])
+            if(in_msg["msg_type"] == 2):
+                self.probe_event.succeed(in_msg)
                 self.probe_event = self.env.event()
             else:
-                self.env.sendMessage(self.id, msg["send_id"], "Reply from node")
+                out_msg = self.env.sendMessage(self.id, in_msg["send_id"], "Reply from node")
+                self.out_msg_history.append(out_msg)
 
     # returns closest node relative to client
     def get_closest_node(self):
         while True:
-            client_id = yield self.probe_event
+            in_msg = yield self.probe_event
             # Closest Node Discovery to be implemented here
             closest_node_id = self.env.getRandomNode()
-            self.env.sendMessage(self.id, client_id, closest_node_id, msg_type = 2)
+            client_id = in_msg["send_id"]
+            msg_id = in_msg["msg_id"]
+            self.env.sendMessage(self.id, client_id, closest_node_id, msg_type = 2, msg_id = msg_id)
       
