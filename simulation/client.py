@@ -7,6 +7,12 @@ from reconnection_rules import ReconnectionRules
 
 class MobileClient(object):
     def __init__(self, env, id, plan):
+        """ Initializes a Mobile Client
+        Args:
+            env (simpy.Environment): The Environment of the simulation
+            id (string): The ID of the Client
+            plan (XML object): The XML Object of the Client from the open berlin scenario
+        """
         self.env = env
         self.id = id
         self.plan = plan
@@ -95,10 +101,10 @@ class MobileClient(object):
                     self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
                 self.closest_node_id = msg["msg"]
 
-    def connection_valid(self):
-        """
-        Checks if the connection to the current Node is Valid 
-        Returns boolean if valod or not
+    def connection_valid(self):       
+        """Checks all rules of the reconnection_rule.py
+        Returns:
+            boolean: If all the rules are fulfilled and the connection is currently valid
         """
         Rules = ReconnectionRules(self.env)
         check = all([
@@ -108,6 +114,15 @@ class MobileClient(object):
         return check
 
     def get_entry_from_data(self, activity, leg):
+        """Extracts a combined entry from a touple of one activity and one leg.
+
+        Args:
+            activity (XML Elemenent): The activity element of the open berlin scenario
+            leg (XML Element): The leg element prior to the activity of the open berlin scenario
+
+        Returns:
+            dict: A dictionary with the fields "x", "y", "route", "trav_time" and "distance"
+        """
         entry = {}
         # Setting the physical end x coordinate from the following activity
         entry['x'] = float(activity.attrib['x'])
