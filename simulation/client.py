@@ -73,7 +73,7 @@ class MobileClient(object):
             print("Client {}: Nearest node is {}".format(self.id, msg["msg"]))
             self.closest_node_id = msg["msg"]
 
-    def connect(self):
+    def out_connect(self):
         while (True):
             # If no node is registered or connection not valid, trigger the event to search for the closest node
             if(not self.closest_node_id or not self.connection_valid()):
@@ -82,14 +82,18 @@ class MobileClient(object):
             # If closest node is registered, send messages to node
             else:
                 self.env.sendMessage(self.id, self.closest_node_id, "Client {} sends a task".format(self.id))
-                msg = yield self.msg_pipe.get()
-                # Append message to history
-                self.msg_history.append(msg)
-                # Waiting the given latency
-                yield self.env.timeout(msg["latency"])
-                print("Client {}: Message from Node {} at {} from {}: {}".format(self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
+               
             yield self.env.timeout(random.randint(0,5))
             
+    def in_connect(self):
+        while(True):
+            msg = yield self.msg_pipe.get()
+            # Append message to history
+            self.msg_history.append(msg)
+            # Waiting the given latency
+            yield self.env.timeout(msg["latency"])
+            print("Client {}: Message from Node {} at {} from {}: {}".format(self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
+
             
     def connection_valid(self):
         """
