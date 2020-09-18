@@ -14,7 +14,7 @@ class MobileClient(object):
         self.closest_node_id = ""
         # Event triggers search for closest node
         self.req_node_event = env.event()
-        self.msg_pipe = simpy.Store(env)
+        self.msg_pipe = simpy.FilterStore(env)
         self.msg_history = []
         # Set coordinates to first activity in plan
         self.phy_x = float(plan.find('activity').attrib["x"])
