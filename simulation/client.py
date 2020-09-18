@@ -2,6 +2,7 @@ import math
 import simpy
 import random
 from geopy import distance as geo_distance
+from reconnection_rules import ReconnectionRules
 
 
 class MobileClient(object):
@@ -99,8 +100,12 @@ class MobileClient(object):
         Checks if the connection to the current Node is Valid 
         Returns boolean if valod or not
         """
-        latency = self.env.getLatency(self.id, self.closest_node_id)
-        return True if latency < 0.7 else False
+        Rules = ReconnectionRules(self.env)
+        check = all([
+            Rules.latency_rule(self.id, self.closest_node_id),
+            Rules.roundtrip_rule(self.out_msg_history, self.in_msg_history)    
+        ])
+        return check
 
     def get_entry_from_data(self, activity, leg):
         entry = {}
