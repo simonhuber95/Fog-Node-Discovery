@@ -26,10 +26,10 @@ class MobileClient(object):
         print("Client {}: active, current location x: {}, y: {}".format(
             self.id, self.phy_x, self.phy_y))
         # Starting the operating processes
-        self.request_process = self.env.process(self.req_closest_node())
-        self.connect_process = self.env.process(self.connect())
-        self.move_process = self.env.process(self.move())    
-        
+        self.out_process = self.env.process(self.out_connect())
+        self.in_process = self.env.process(self.in_connect())
+        self.move_process = self.env.process(self.move())
+
     def move(self):
         print("Client {}: starting move Process".format(self.id))
         # Iterate through every leg & activity in seperate process
@@ -58,43 +58,40 @@ class MobileClient(object):
                 #     self.env.now, self.id, self.phy_x, self.phy_y))
                 # print("Delta x: {}, Delta y: {}".format(round(to_x - self.phy_x, 2), round(to_y - self.phy_y, 2)))
 
-    def req_closest_node(self):
-        print("Client {}: starting Request closest node Process".format(self.id))
-        while(True):
-            yield self.req_node_event # passivate the search for closest node. Is triggered if reconnection Criteria is fullfilled
-            # Emit Event to any node of the Fog Network to retrieve closest node
-            print("Client {}: Probing network".format(self.id))
-            random_node = self.env.getRandomNode()
-            self.env.sendMessage(self.id, random_node, "Request Closest node", msg_type = 2)
-            # Receiving Message from random node
-            msg = yield self.msg_pipe.get()
-            # Append message to history
-            self.msg_history.append(msg)
-            print("Client {}: Nearest node is {}".format(self.id, msg["msg"]))
-            self.closest_node_id = msg["msg"]
-
     def out_connect(self):
         while (True):
             # If no node is registered or connection not valid, trigger the event to search for the closest node
             if(not self.closest_node_id or not self.connection_valid()):
-                self.req_node_event.succeed()
-                self.req_node_event = self.env.event()
+                print("Client {}: Probing network".format(self.id))
+                random_node = self.env.getRandomNode()
+                self.env.sendMessage(self.id, random_node,
+                                     "Request Closest node", msg_type=2)
             # If closest node is registered, send messages to node
             else:
-                self.env.sendMessage(self.id, self.closest_node_id, "Client {} sends a task".format(self.id))
-               
-            yield self.env.timeout(random.randint(0,5))
-            
+                self.env.sendMessage(
+                    self.id, self.closest_node_id, "Client {} sends a task".format(self.id))
+
+            yield self.env.timeout(random.randint(0, 5))
+
     def in_connect(self):
         while(True):
             msg = yield self.msg_pipe.get()
-            # Append message to history
-            self.msg_history.append(msg)
             # Waiting the given latency
             yield self.env.timeout(msg["latency"])
-            print("Client {}: Message from Node {} at {} from {}: {}".format(self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
+            # Append message to history
+            self.msg_history.append(msg)
+            # Extracting message Type
+            msg_type = msg["msg_type"]
+            # Standard task message
+            if(msg_type == 1):
+                print("Client {}: Message from Node {} at {} from {}: {}".format(
+                    self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
+            # Closest node message
+            elif(msg_type == 2):
+                print("Client {}: Message from Node {} at {} from {}: Closest node is {}".format(
+                    self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
+                self.closest_node_id = msg["msg"]
 
-            
     def connection_valid(self):
         """
         Checks if the connection to the current Node is Valid 
@@ -102,8 +99,7 @@ class MobileClient(object):
         """
         latency = self.env.getLatency(self.id, self.closest_node_id)
         return True if latency < 0.7 else False
-    
-        
+
     def get_entry_from_data(self, activity, leg):
         entry = {}
         # Setting the physical end x coordinate from the following activity
