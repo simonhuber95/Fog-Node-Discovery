@@ -34,7 +34,7 @@ def get_random_node():
     return random.choice(env.nodes)["id"]
 
 
-def send_message(send_id, rec_id, msg, msg_type=1):
+def send_message(send_id, rec_id, msg, msg_type=1, msg_id = uuid.uuid4()):
     """
     Parameter send_id as string: ID of sender
     Paramater rec_id as string: ID of recipient
@@ -45,7 +45,7 @@ def send_message(send_id, rec_id, msg, msg_type=1):
     """
     latency = env.getLatency(send_id, rec_id)
     # yield env.timeout(latency)
-    message = {"send_id": send_id, "rec_id": rec_id, "timestamp": env.now, "msg": msg, "msg_type": msg_type, "latency": latency}
+    message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id, "timestamp": env.now, "msg": msg, "msg_type": msg_type, "latency": latency}
     env.getParticipant(rec_id).msg_pipe.put(message)
     return message
 
