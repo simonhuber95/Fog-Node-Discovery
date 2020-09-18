@@ -45,7 +45,7 @@ def send_message(send_id, rec_id, msg, msg_type=1):
     """
     latency = env.getLatency(send_id, rec_id)
     # yield env.timeout(latency)
-    message = {"send_id": send_id, "timestamp": env.now, "msg": msg, "msg_type": msg_type, "latency": latency}
+    message = {"send_id": send_id, "rec_id": rec_id, "timestamp": env.now, "msg": msg, "msg_type": msg_type, "latency": latency}
     env.getParticipant(rec_id).msg_pipe.put(message)
     return message
 

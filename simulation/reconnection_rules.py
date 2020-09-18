@@ -32,9 +32,8 @@ class ReconnectionRules(object):
         """
         last_in_msg = in_history[-1]
         last_sender = last_in_msg["send_id"]
-        out_msg = list(filter(lambda message: message["send_id"] == last_sender, out_history))[-1]
+        out_msg = list(filter(lambda message: message["rec_id"] == last_sender, out_history))[-1]
         roundtrip_time = last_in_msg["timestamp"] - out_msg["timestamp"]
-        
         return True if roundtrip_time < threshold else False
     
         

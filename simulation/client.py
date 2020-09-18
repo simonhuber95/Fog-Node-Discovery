@@ -77,10 +77,11 @@ class MobileClient(object):
                 self.out_msg_history.append(out_msg)
             # If closest node is registered, send messages to node
             else:
-                self.env.sendMessage(
+                out_msg = self.env.sendMessage(
                     self.id, self.closest_node_id, "Client {} sends a task".format(self.id))
+                self.out_msg_history.append(out_msg)
 
-            yield self.env.timeout(random.randint(0, 5))
+            yield self.env.timeout(random.randint(1, 5))
 
     def in_connect(self):
         while(True):
@@ -108,8 +109,8 @@ class MobileClient(object):
         """
         Rules = ReconnectionRules(self.env)
         check = all([
-            Rules.latency_rule(self.id, self.closest_node_id),
-            Rules.roundtrip_rule(self.out_msg_history, self.in_msg_history)    
+            Rules.latency_rule(self.id, self.closest_node_id, threshold = 10),
+            Rules.roundtrip_rule(self.out_msg_history, self.in_msg_history, threshold = 10)    
         ])
         return check
 
