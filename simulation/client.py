@@ -2,17 +2,28 @@ import math
 import simpy
 import random
 from geopy import distance as geo_distance
+from reconnection_rules import ReconnectionRules
 
 
 class MobileClient(object):
     def __init__(self, env, id, plan):
+        """ Initializes a Mobile Client
+        Args:
+            env (simpy.Environment): The Environment of the simulation
+            id (string): The ID of the Client
+            plan (XML object): The XML Object of the Client from the open berlin scenario
+        """
         self.env = env
         self.id = id
         self.plan = plan
         self.connected = False
+        # ID of closest node as string
+        self.closest_node_id = ""
         # Event triggers search for closest node
         self.req_node_event = env.event()
-        self.msg_pipe = simpy.Store(env)
+        self.msg_pipe = simpy.FilterStore(env)
+        self.in_msg_history = []
+        self.out_msg_history = []
         # Set coordinates to first activity in plan
         self.phy_x = float(plan.find('activity').attrib["x"])
         self.phy_y = float(plan.find('activity').attrib["y"])
@@ -22,13 +33,11 @@ class MobileClient(object):
         self.virt_y = 0
         print("Client {}: active, current location x: {}, y: {}".format(
             self.id, self.phy_x, self.phy_y))
-        self.connected_node = False
-        
         # Starting the operating processes
-        self.connect_process = self.env.process(self.connect())
-        # self.request_process = self.env.process(self.req_closest_node())
-        self.move_process = self.env.process(self.move())    
-        
+        self.out_process = self.env.process(self.out_connect())
+        self.in_process = self.env.process(self.in_connect())
+        self.move_process = self.env.process(self.move())
+
     def move(self):
         print("Client {}: starting move Process".format(self.id))
         # Iterate through every leg & activity in seperate process
@@ -38,7 +47,6 @@ class MobileClient(object):
             distance = entry['distance']
             to_x = entry['x']
             to_y = entry['y']
-            print(entry)
 
             # Calculating the deltas in each direction
             # the order is (latitude, longitude) or (y, x) in Cartesian terms
@@ -58,28 +66,64 @@ class MobileClient(object):
                 #     self.env.now, self.id, self.phy_x, self.phy_y))
                 # print("Delta x: {}, Delta y: {}".format(round(to_x - self.phy_x, 2), round(to_y - self.phy_y, 2)))
 
-    def req_closest_node(self):
-        print("Client {}: starting Request closest node Process".format(self.id))
-        while(True):
-            yield self.req_node_event # passivate the search for closest node. Is triggered if reconnection Criteria is fullfilled
-            # Emit Event to any node of the Fog Network to retrieve closest node
-            print("Client {}: Probing network".format(self.id))
-            node = self.env.getNode(random.choice(range(1, len(self.env.nodes)+1)))
-            node.probe_event.succeed(
-                {"client_id": self.id, "msg_pipe": self.msg_pipe})
-            node.probe_event = self.env.event()
-            # Receiving Message from random node
-            in_msg = yield self.msg_pipe.get()
-            print("Client {}: Nearest node is {}".format(self.id, in_msg))
-
-    def connect(self):
+    def out_connect(self):
         while (True):
-            print("Client {}: starting Connection Process".format(self.id))
-            # Connect to closest node of the Fog Network
-            self.env.sendMessage(self.id, self.env.getRandomNode(), "Test Message")
-            yield self.env.timeout(10)
+            # If no node is registered or connection not valid, trigger the event to search for the closest node
+            if(not self.closest_node_id or not self.connection_valid()):
+                print("Client {}: Probing network".format(self.id))
+                random_node = self.env.getRandomNode()
+                out_msg = self.env.sendMessage(self.id, random_node,
+                                     "Request Closest node", msg_type=2)
+                self.out_msg_history.append(out_msg)
+            # If closest node is registered, send messages to node
+            else:
+                out_msg = self.env.sendMessage(
+                    self.id, self.closest_node_id, "Client {} sends a task".format(self.id))
+                self.out_msg_history.append(out_msg)
+
+            yield self.env.timeout(random.randint(1, 5))
+
+    def in_connect(self):
+        while(True):
+            msg = yield self.msg_pipe.get()
+            # Waiting the given latency
+            yield self.env.timeout(msg["latency"])
+            # Append message to history
+            self.in_msg_history.append(msg)
+            # Extracting message Type
+            msg_type = msg["msg_type"]
+            # Standard task message
+            if(msg_type == 1):
+                print("Client {}: Message from Node {} at {} from {}: {}".format(
+                    self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
+            # Closest node message
+            elif(msg_type == 2):
+                print("Client {}: Message from Node {} at {} from {}: Closest node is {}".format(
+                    self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
+                self.closest_node_id = msg["msg"]
+
+    def connection_valid(self):       
+        """Checks all rules of the reconnection_rule.py
+        Returns:
+            boolean: If all the rules are fulfilled and the connection is currently valid
+        """
+        Rules = ReconnectionRules(self.env)
+        check = all([
+            Rules.latency_rule(self.id, self.closest_node_id, threshold = 10),
+            Rules.roundtrip_rule(self.out_msg_history, self.in_msg_history, threshold = 10)    
+        ])
+        return check
 
     def get_entry_from_data(self, activity, leg):
+        """Extracts a combined entry from a touple of one activity and one leg.
+
+        Args:
+            activity (XML Elemenent): The activity element of the open berlin scenario
+            leg (XML Element): The leg element prior to the activity of the open berlin scenario
+
+        Returns:
+            dict: A dictionary with the fields "x", "y", "route", "trav_time" and "distance"
+        """
         entry = {}
         # Setting the physical end x coordinate from the following activity
         entry['x'] = float(activity.attrib['x'])

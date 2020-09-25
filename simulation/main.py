@@ -4,6 +4,7 @@ from node import FogNode
 import xml.etree.ElementTree as et
 import uuid
 import random
+import math
 
 client_path = "./data/berlin-v5.4-1pct.plans.xml"
 amount_clients = 1
@@ -33,19 +34,44 @@ def get_random_node():
     return random.choice(env.nodes)["id"]
 
 
-def send_message(send_id, rec_id, msg):
+def send_message(send_id, rec_id, msg, msg_type=1, msg_id = None):
     """
     Parameter send_id as string: ID of sender
     Paramater rec_id as string: ID of recipient
     Parameter msg as string: Message to be send
+    Parameter msg_type as int *optional: type of message -> 1: regular message (default), 2: Closest node request, 3: Node discovery
+
+    Not complete. env.timeout() is not working for some reason, so the delay has to be awaited at recipient
     """
-    env.getParticipant(rec_id).msg_pipe.put({"send_id": send_id, "msg": msg})
+    # Create new message ID if none is given
+    if not msg_id:
+        msg_id = uuid.uuid4()
+    
+    latency = env.getLatency(send_id, rec_id)
+    # yield env.timeout(latency)
+    message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id, "timestamp": env.now, "msg": msg, "msg_type": msg_type, "latency": latency}
+    env.getParticipant(rec_id).msg_pipe.put(message)
+    return message
+
+
+def get_latency(send_id, rec_id):
+    """
+    Parameter send_id as string: ID of sender
+    Paramater rec_id as string: ID of recipient
+    Returns float: Latency in seconds
+    """
+    sender = env.getParticipant(send_id)
+    receiver = env.getParticipant(rec_id)
+    # distance = math.sqrt((receiver.phy_x - sender.phy_x)**2 + (receiver.phy_y - sender.phy_y)**2)
+
+    return random.randint(0, 100)/100
 
 
 # Assign functions to Environment Object
 env.getParticipant = get_participant
 env.getRandomNode = get_random_node
 env.sendMessage = send_message
+env.getLatency = get_latency
 # Message interface for Nodes and clients
 
 
@@ -71,4 +97,4 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
     env.clients.append({"id": client_id, "obj": client})
 
 # Run Simulation
-env.run(until=10)
+env.run(until=30)
