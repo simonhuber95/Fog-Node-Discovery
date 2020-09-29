@@ -5,8 +5,11 @@ import xml.etree.ElementTree as et
 import uuid
 import random
 import math
+import geopandas
+import matplotlib.pyplot as plt
 
 client_path = "./data/berlin-v5.4-1pct.plans.xml"
+map_path = "./data/berlin-latest-free/gis_osm_places_a_free_1.shp"
 amount_clients = 1
 amount_nodes = 1
 
@@ -97,4 +100,9 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
     env.clients.append({"id": client_id, "obj": client})
 
 # Run Simulation
-env.run(until=30)
+# env.run(until=30)
+
+gdf = geopandas.read_file(map_path)
+print(gdf.head())
+gdf.plot()
+plt.savefig("test")
