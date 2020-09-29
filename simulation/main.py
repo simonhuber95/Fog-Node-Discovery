@@ -103,6 +103,7 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
 # env.run(until=30)
 
 gdf = geopandas.read_file(map_path)
+gdf = gdf.to_crs("EPSG:31468")
 print(gdf.head())
 gdf.plot()
 plt.savefig("test")
