@@ -1,6 +1,9 @@
+# %%
+
 import simpy
 from client import MobileClient
 from node import FogNode
+import visualize
 import xml.etree.ElementTree as et
 import uuid
 import random
@@ -8,8 +11,9 @@ import math
 import geopandas
 import matplotlib.pyplot as plt
 
-client_path = "./data/berlin-v5.4-1pct.plans.xml"
-map_path = "./data/berlin-latest-free/gis_osm_places_a_free_1.shp"
+
+client_path = "../data/berlin-v5.4-1pct.plans.xml"
+map_path = "../data/berlin-latest-free/gis_osm_places_a_free_1.shp"
 amount_clients = 1
 amount_nodes = 1
 
@@ -37,7 +41,7 @@ def get_random_node():
     return random.choice(env.nodes)["id"]
 
 
-def send_message(send_id, rec_id, msg, msg_type=1, msg_id = None):
+def send_message(send_id, rec_id, msg, msg_type=1, msg_id=None):
     """
     Parameter send_id as string: ID of sender
     Paramater rec_id as string: ID of recipient
@@ -49,10 +53,11 @@ def send_message(send_id, rec_id, msg, msg_type=1, msg_id = None):
     # Create new message ID if none is given
     if not msg_id:
         msg_id = uuid.uuid4()
-    
+
     latency = env.getLatency(send_id, rec_id)
     # yield env.timeout(latency)
-    message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id, "timestamp": env.now, "msg": msg, "msg_type": msg_type, "latency": latency}
+    message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id,
+               "timestamp": env.now, "msg": msg, "msg_type": msg_type, "latency": latency}
     env.getParticipant(rec_id).msg_pipe.put(message)
     return message
 
@@ -99,11 +104,12 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
     client = MobileClient(env, id=client_id, plan=client_plan)
     env.clients.append({"id": client_id, "obj": client})
 
+viz = visualize.visualize_movements(env, map_path)
+
 # Run Simulation
 # env.run(until=30)
 
-gdf = geopandas.read_file(map_path)
-gdf = gdf.to_crs("EPSG:31468")
-print(gdf.head())
-gdf.plot()
-plt.savefig("test")
+
+
+
+# %%
