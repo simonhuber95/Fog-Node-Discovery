@@ -12,22 +12,25 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 from shapely.geometry import Point
 import yaml
+from pathlib import Path
 
-with open("../config.yml", "r") as ymlfile:
-    config = yaml.load(ymlfile, Loader=yaml.FullLoader)
+base_path = Path().absolute().parent
+
+with open(base_path.joinpath("config.yml"), "r") as ymlfile:
+    config=yaml.load(ymlfile, Loader = yaml.FullLoader)
 
 
-client_path = "../data/berlin-v5.4-1pct.plans.xml"
-map_path = "../data/berlin-latest-free/gis_osm_places_a_free_1.shp"
-amount_clients = 20
-amount_nodes = 1
+client_path= base_path.joinpath("data/berlin-v5.4-1pct.plans.xml")
+map_path= base_path.joinpath("data/berlin-latest-free/gis_osm_places_a_free_1.shp")
+amount_clients=1
+amount_nodes=1
 
 
 # Init Environment
 print("Init Environment")
-env = simpy.Environment()
-env.clients = []
-env.nodes = []
+env=simpy.Environment()
+env.clients=[]
+env.nodes=[]
 
 
 def get_participant(id):
@@ -46,7 +49,7 @@ def get_random_node():
     return random.choice(env.nodes)["id"]
 
 
-def send_message(send_id, rec_id, msg, msg_type=1, msg_id=None):
+def send_message(send_id, rec_id, msg, msg_type = 1, msg_id = None):
     """
     Parameter send_id as string: ID of sender
     Paramater rec_id as string: ID of recipient
@@ -57,11 +60,11 @@ def send_message(send_id, rec_id, msg, msg_type=1, msg_id=None):
     """
     # Create new message ID if none is given
     if not msg_id:
-        msg_id = uuid.uuid4()
+        msg_id=uuid.uuid4()
 
-    latency = env.getLatency(send_id, rec_id)
+    latency=env.getLatency(send_id, rec_id)
     # yield env.timeout(latency)
-    message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id,
+    message={"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id,
                "timestamp": env.now, "msg": msg, "msg_type": msg_type, "latency": latency}
     env.getParticipant(rec_id).msg_pipe.put(message)
     return message
@@ -129,7 +132,7 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
 # viz = visualize.visualize_movements(env, map_path)
 
 # Run Simulation
-env.run(until=1)
+# env.run(until=1)
 
 
 # %%
