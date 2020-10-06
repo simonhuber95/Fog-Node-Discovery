@@ -14,23 +14,21 @@ from shapely.geometry import Point
 import yaml
 from pathlib import Path
 
+# Set base path of the project
 base_path = Path().absolute().parent
 
+# open the config.yaml as object
 with open(base_path.joinpath("config.yml"), "r") as ymlfile:
-    config=yaml.load(ymlfile, Loader = yaml.FullLoader)
+    config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
-
-client_path= base_path.joinpath("data/berlin-v5.4-1pct.plans.xml")
-map_path= base_path.joinpath("data/berlin-latest-free/gis_osm_places_a_free_1.shp")
-amount_clients=1
-amount_nodes=1
-
-
-# Init Environment
-print("Init Environment")
-env=simpy.Environment()
-env.clients=[]
-env.nodes=[]
+# set path to the OpenBerlinScenario.xml
+client_path = base_path.joinpath(config["clients"]["path"])
+# set path to the map of Berlin
+map_path = base_path.joinpath(config["map"]["path"])
+# Set amount of client
+amount_clients = config["clients"]["amount"]
+# Set amount of nodes
+amount_nodes = config["nodes"]["amount"]
 
 
 def get_participant(id):
@@ -60,13 +58,16 @@ def send_message(send_id, rec_id, msg, msg_type = 1, msg_id = None):
     """
     # Create new message ID if none is given
     if not msg_id:
-        msg_id=uuid.uuid4()
-
-    latency=env.getLatency(send_id, rec_id)
+        msg_id = uuid.uuid4()
+    # get the latency between the two participants
+    latency = env.getLatency(send_id, rec_id)
     # yield env.timeout(latency)
-    message={"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id,
+    # Assemble message
+    message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id,
                "timestamp": env.now, "msg": msg, "msg_type": msg_type, "latency": latency}
+    # Send message to receiver
     env.getParticipant(rec_id).msg_pipe.put(message)
+    # Return messsage to sender to put it into the history
     return message
 
 
@@ -84,11 +85,11 @@ def get_latency(send_id, rec_id):
     # High-Band 5G
     if(distance < config["bands"]["5G-High"]["distance"]):
         print("5G-High")
-        return config["bands"]["5G-Low"]["latency"]/1000  * random.randint(50, 150)/100
+        return config["bands"]["5G-Low"]["latency"]/1000 * random.randint(50, 150)/100
     # Medium-Band 5G
     elif (distance < config["bands"]["5G-Medium"]["distance"]):
         print("5G-Medium")
-        return config["bands"]["5G-Low"]["latency"]/1000  * random.randint(50, 150)/100
+        return config["bands"]["5G-Low"]["latency"]/1000 * random.randint(50, 150)/100
     # Low-Band 5G
     elif (distance < config["bands"]["5G-Low"]["distance"]):
         print("5G-Low")
@@ -102,6 +103,11 @@ def get_distance(send_x, send_y, rec_x, rec_y):
     distance = math.sqrt((rec_x - send_x)**2 + (rec_y - send_y)**2)
     return distance
 
+# Init Environment
+print("Init Environment")
+env = simpy.Environment()
+env.clients = []
+env.nodes = []
 
 # Assign functions to Environment Object
 env.getParticipant = get_participant
@@ -109,12 +115,9 @@ env.getRandomNode = get_random_node
 env.sendMessage = send_message
 env.getLatency = get_latency
 env.getDistance = get_distance
-# Message interface for Nodes and clients
-
 
 # Reading Clients from Open Berlin Scenario XML
 client_data = et.parse(client_path)
-
 
 print("Init Fog Nodes")
 for i in range(1, amount_nodes+1):
@@ -132,7 +135,7 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
 # viz = visualize.visualize_movements(env, map_path)
 
 # Run Simulation
-# env.run(until=1)
+env.run(until=10)
 
 
 # %%
