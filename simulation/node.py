@@ -4,7 +4,7 @@ import random
 
 
 class FogNode(object):
-    def __init__(self, env, id, discovery_protocol, slots, phy_x = 4590909.84, phy_y = 5821199.78):
+    def __init__(self, env, id, discovery_protocol, slots, phy_x = 4632239.86, phy_y = 5826584.42):
         self.env = env
         self.id = id
         self.discovery_protocol = discovery_protocol

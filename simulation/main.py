@@ -84,16 +84,18 @@ def get_latency(send_id, rec_id):
     print("Distance to Node: {}".format(distance))
     # High-Band 5G
     if(distance < config["bands"]["5G-High"]["distance"]):
-        print("5G-High")
-        return config["bands"]["5G-Low"]["latency"]/1000 * random.randint(50, 150)/100
+        latency = config["bands"]["5G-High"]["latency"]/1000 * random.randint(75, 125)/100
+        print("5G-High", latency)
+        return latency
     # Medium-Band 5G
     elif (distance < config["bands"]["5G-Medium"]["distance"]):
-        print("5G-Medium")
-        return config["bands"]["5G-Low"]["latency"]/1000 * random.randint(50, 150)/100
+        latency = config["bands"]["5G-Medium"]["latency"]/1000 * random.randint(75, 125)/100
+        print("5G-Medium", latency)
+        return latency
     # Low-Band 5G
     elif (distance < config["bands"]["5G-Low"]["distance"]):
         print("5G-Low")
-        return config["bands"]["5G-Low"]["latency"]/1000 * random.randint(50, 150)/100
+        return config["bands"]["5G-Low"]["latency"]/1000 * random.randint(75, 125)/100
     # 3G
     else:
         return 1
@@ -135,7 +137,7 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
 # viz = visualize.visualize_movements(env, map_path)
 
 # Run Simulation
-env.run(until=10)
+env.run(until=100)
 
 
 # %%
