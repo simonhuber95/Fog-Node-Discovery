@@ -8,13 +8,18 @@ import xml.etree.ElementTree as et
 import uuid
 import random
 import math
-import geopandas
+import geopandas as gpd
 import matplotlib.pyplot as plt
+from shapely.geometry import Point
+import yaml
+
+with open("../config.yml", "r") as ymlfile:
+    config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
 
 client_path = "../data/berlin-v5.4-1pct.plans.xml"
 map_path = "../data/berlin-latest-free/gis_osm_places_a_free_1.shp"
-amount_clients = 1
+amount_clients = 20
 amount_nodes = 1
 
 
@@ -70,9 +75,29 @@ def get_latency(send_id, rec_id):
     """
     sender = env.getParticipant(send_id)
     receiver = env.getParticipant(rec_id)
-    # distance = math.sqrt((receiver.phy_x - sender.phy_x)**2 + (receiver.phy_y - sender.phy_y)**2)
+    distance = env.getDistance(
+        sender.phy_x, sender.phy_y, receiver.phy_x, receiver.phy_y)
+    print("Distance to Node: {}".format(distance))
+    # High-Band 5G
+    if(distance < config["bands"]["5G-High"]["distance"]):
+        print("5G-High")
+        return config["bands"]["5G-Low"]["latency"]/1000  * random.randint(50, 150)/100
+    # Medium-Band 5G
+    elif (distance < config["bands"]["5G-Medium"]["distance"]):
+        print("5G-Medium")
+        return config["bands"]["5G-Low"]["latency"]/1000  * random.randint(50, 150)/100
+    # Low-Band 5G
+    elif (distance < config["bands"]["5G-Low"]["distance"]):
+        print("5G-Low")
+        return config["bands"]["5G-Low"]["latency"]/1000 * random.randint(50, 150)/100
+    # 3G
+    else:
+        return 1
 
-    return random.randint(0, 100)/100
+
+def get_distance(send_x, send_y, rec_x, rec_y):
+    distance = math.sqrt((rec_x - send_x)**2 + (rec_y - send_y)**2)
+    return distance
 
 
 # Assign functions to Environment Object
@@ -80,6 +105,7 @@ env.getParticipant = get_participant
 env.getRandomNode = get_random_node
 env.sendMessage = send_message
 env.getLatency = get_latency
+env.getDistance = get_distance
 # Message interface for Nodes and clients
 
 
@@ -104,12 +130,10 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
     client = MobileClient(env, id=client_id, plan=client_plan)
     env.clients.append({"id": client_id, "obj": client})
 
-viz = visualize.visualize_movements(env, map_path)
+# viz = visualize.visualize_movements(env, map_path)
 
 # Run Simulation
-# env.run(until=30)
-
-
+env.run(until=30)
 
 
 # %%

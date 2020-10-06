@@ -1,0 +1,15 @@
+clients:
+  amount: 1
+nodes:
+  amount: 1
+  discovery_protocol: default
+bands:
+  5G-High:
+    distance: 50 #in meter
+    latency: 5 #in milliseconds
+  5G-Medium:
+    distance: 500
+    latency: 40
+  5G-Low: 
+    distance: 2000
+    latency: 80
