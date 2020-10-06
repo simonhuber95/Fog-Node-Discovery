@@ -81,20 +81,14 @@ def get_latency(send_id, rec_id):
     receiver = env.getParticipant(rec_id)
     distance = env.getDistance(
         sender.phy_x, sender.phy_y, receiver.phy_x, receiver.phy_y)
-    print("Distance to Node: {}".format(distance))
     # High-Band 5G
     if(distance < config["bands"]["5G-High"]["distance"]):
-        latency = config["bands"]["5G-High"]["latency"]/1000 * random.randint(75, 125)/100
-        print("5G-High", latency)
-        return latency
+        return config["bands"]["5G-High"]["latency"]/1000 * random.randint(75, 125)/100
     # Medium-Band 5G
     elif (distance < config["bands"]["5G-Medium"]["distance"]):
-        latency = config["bands"]["5G-Medium"]["latency"]/1000 * random.randint(75, 125)/100
-        print("5G-Medium", latency)
-        return latency
+        return config["bands"]["5G-Medium"]["latency"]/1000 * random.randint(75, 125)/100
     # Low-Band 5G
     elif (distance < config["bands"]["5G-Low"]["distance"]):
-        print("5G-Low")
         return config["bands"]["5G-Low"]["latency"]/1000 * random.randint(75, 125)/100
     # 3G
     else:
