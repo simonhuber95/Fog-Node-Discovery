@@ -53,7 +53,7 @@ def send_message(send_id, rec_id, msg, msg_type = 1, msg_id = None):
     Paramater rec_id as string: ID of recipient
     Parameter msg as string: Message to be send
     Parameter msg_type as int *optional: type of message -> 1: regular message (default), 2: Closest node request, 3: Node discovery
-
+    Parameter msg_id as uuid *optional: unique id of the message, if none is given a new uuid is created
     Not complete. env.timeout() is not working for some reason, so the delay has to be awaited at recipient
     """
     # Create new message ID if none is given
