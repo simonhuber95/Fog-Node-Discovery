@@ -109,10 +109,6 @@ env.getDistance = get_distance
 # Message interface for Nodes and clients
 
 
-def test(send_id, rec_id, msg): return env.getParticipant(
-    rec_id).msg_pipe.put({"send_id": send_id, "msg": msg})
-
-
 # Reading Clients from Open Berlin Scenario XML
 client_data = et.parse(client_path)
 
@@ -133,7 +129,7 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
 # viz = visualize.visualize_movements(env, map_path)
 
 # Run Simulation
-env.run(until=30)
+env.run(until=1)
 
 
 # %%
