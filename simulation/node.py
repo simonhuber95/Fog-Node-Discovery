@@ -4,13 +4,15 @@ import random
 
 
 class FogNode(object):
-    def __init__(self, env, id, discovery_protocol, slots):
+    def __init__(self, env, id, discovery_protocol, slots, phy_x = 4632239.86, phy_y = 5826584.42):
         self.env = env
         self.id = id
         self.discovery_protocol = discovery_protocol
         self.resource = Resource(env, slots)
         self.msg_pipe = simpy.Store(env)
         self.probe_event = env.event()
+        self.phy_x = phy_x
+        self.phy_y = phy_y
         self.connect_event = env.event()
         self.in_msg_history = []
         self.out_msg_history = []

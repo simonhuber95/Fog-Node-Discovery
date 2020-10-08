@@ -1,6 +1,7 @@
 import math
 import simpy
 import random
+import geopandas
 from geopy import distance as geo_distance
 from reconnection_rules import ReconnectionRules
 

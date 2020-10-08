@@ -1,0 +1,19 @@
+clients:
+  path: data/berlin-v5.4-1pct.plans.xml
+  amount: 1
+nodes:
+  path: None
+  amount: 1
+  discovery_protocol: default
+map:
+  path: data/berlin-latest-free/gis_osm_places_a_free_1.shp
+bands:
+  5G-High:
+    distance: 50 #in meter
+    latency: 5 #in milliseconds
+  5G-Medium:
+    distance: 500
+    latency: 40
+  5G-Low:
+    distance: 2000
+    latency: 80

@@ -1,21 +1,34 @@
+# %%
+
 import simpy
 from client import MobileClient
 from node import FogNode
+import visualize
 import xml.etree.ElementTree as et
 import uuid
 import random
 import math
+import geopandas as gpd
+import matplotlib.pyplot as plt
+from shapely.geometry import Point
+import yaml
+from pathlib import Path
 
-client_path = "./data/berlin-v5.4-1pct.plans.xml"
-amount_clients = 1
-amount_nodes = 1
+# Set base path of the project
+base_path = Path().absolute().parent
 
+# open the config.yaml as object
+with open(base_path.joinpath("config.yml"), "r") as ymlfile:
+    config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
-# Init Environment
-print("Init Environment")
-env = simpy.Environment()
-env.clients = []
-env.nodes = []
+# set path to the OpenBerlinScenario.xml
+client_path = base_path.joinpath(config["clients"]["path"])
+# set path to the map of Berlin
+map_path = base_path.joinpath(config["map"]["path"])
+# Set amount of client
+amount_clients = config["clients"]["amount"]
+# Set amount of nodes
+amount_nodes = config["nodes"]["amount"]
 
 
 def get_participant(id):
@@ -34,23 +47,27 @@ def get_random_node():
     return random.choice(env.nodes)["id"]
 
 
-def send_message(send_id, rec_id, msg, msg_type=1, msg_id = None):
+def send_message(send_id, rec_id, msg, msg_type = 1, msg_id = None):
     """
     Parameter send_id as string: ID of sender
     Paramater rec_id as string: ID of recipient
     Parameter msg as string: Message to be send
     Parameter msg_type as int *optional: type of message -> 1: regular message (default), 2: Closest node request, 3: Node discovery
-
+    Parameter msg_id as uuid *optional: unique id of the message, if none is given a new uuid is created
     Not complete. env.timeout() is not working for some reason, so the delay has to be awaited at recipient
     """
     # Create new message ID if none is given
     if not msg_id:
         msg_id = uuid.uuid4()
-    
+    # get the latency between the two participants
     latency = env.getLatency(send_id, rec_id)
     # yield env.timeout(latency)
-    message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id, "timestamp": env.now, "msg": msg, "msg_type": msg_type, "latency": latency}
+    # Assemble message
+    message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id,
+               "timestamp": env.now, "msg": msg, "msg_type": msg_type, "latency": latency}
+    # Send message to receiver
     env.getParticipant(rec_id).msg_pipe.put(message)
+    # Return messsage to sender to put it into the history
     return message
 
 
@@ -62,26 +79,41 @@ def get_latency(send_id, rec_id):
     """
     sender = env.getParticipant(send_id)
     receiver = env.getParticipant(rec_id)
-    # distance = math.sqrt((receiver.phy_x - sender.phy_x)**2 + (receiver.phy_y - sender.phy_y)**2)
+    distance = env.getDistance(
+        sender.phy_x, sender.phy_y, receiver.phy_x, receiver.phy_y)
+    # High-Band 5G
+    if(distance < config["bands"]["5G-High"]["distance"]):
+        return config["bands"]["5G-High"]["latency"]/1000 * random.randint(75, 125)/100
+    # Medium-Band 5G
+    elif (distance < config["bands"]["5G-Medium"]["distance"]):
+        return config["bands"]["5G-Medium"]["latency"]/1000 * random.randint(75, 125)/100
+    # Low-Band 5G
+    elif (distance < config["bands"]["5G-Low"]["distance"]):
+        return config["bands"]["5G-Low"]["latency"]/1000 * random.randint(75, 125)/100
+    # 3G
+    else:
+        return 1
 
-    return random.randint(0, 100)/100
 
+def get_distance(send_x, send_y, rec_x, rec_y):
+    distance = math.sqrt((rec_x - send_x)**2 + (rec_y - send_y)**2)
+    return distance
+
+# Init Environment
+print("Init Environment")
+env = simpy.Environment()
+env.clients = []
+env.nodes = []
 
 # Assign functions to Environment Object
 env.getParticipant = get_participant
 env.getRandomNode = get_random_node
 env.sendMessage = send_message
 env.getLatency = get_latency
-# Message interface for Nodes and clients
-
-
-def test(send_id, rec_id, msg): return env.getParticipant(
-    rec_id).msg_pipe.put({"send_id": send_id, "msg": msg})
-
+env.getDistance = get_distance
 
 # Reading Clients from Open Berlin Scenario XML
 client_data = et.parse(client_path)
-
 
 print("Init Fog Nodes")
 for i in range(1, amount_nodes+1):
@@ -96,5 +128,10 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
     client = MobileClient(env, id=client_id, plan=client_plan)
     env.clients.append({"id": client_id, "obj": client})
 
+# viz = visualize.visualize_movements(env, map_path)
+
 # Run Simulation
-env.run(until=30)
+env.run(until=100)
+
+
+# %%
