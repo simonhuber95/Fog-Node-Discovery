@@ -1,9 +1,14 @@
+simulation:
+  runtime: 20
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
-  amount: 1
+  amount: 3
+  latency_threshold: 0.9
+  roundtrip_threshold: 1.2
+  timeout_threshold: 2
 nodes:
   path: None
-  amount: 1
+  amount: 3
   discovery_protocol: default
 map:
   path: data/berlin-latest-free/gis_osm_places_a_free_1.shp

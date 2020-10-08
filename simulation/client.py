@@ -7,7 +7,7 @@ from reconnection_rules import ReconnectionRules
 
 
 class MobileClient(object):
-    def __init__(self, env, id, plan):
+    def __init__(self, env, id, plan, latency_threshold=0.9, roundtrip_threshold=1.2, timeout_threshold=2):
         """ Initializes a Mobile Client
         Args:
             env (simpy.Environment): The Environment of the simulation
@@ -20,6 +20,9 @@ class MobileClient(object):
         self.connected = False
         # ID of closest node as string
         self.closest_node_id = ""
+        self.latency_threshold = latency_threshold
+        self.roundtrip_threshold = roundtrip_threshold
+        self.timeout_threshold = timeout_threshold
         # Event triggers search for closest node
         self.req_node_event = env.event()
         self.msg_pipe = simpy.FilterStore(env)
@@ -74,7 +77,7 @@ class MobileClient(object):
                 print("Client {}: Probing network".format(self.id))
                 random_node = self.env.getRandomNode()
                 out_msg = self.env.sendMessage(self.id, random_node,
-                                     "Request Closest node", msg_type=2)
+                                               "Request Closest node", msg_type=2)
                 self.out_msg_history.append(out_msg)
             # If closest node is registered, send messages to node
             else:
@@ -103,15 +106,19 @@ class MobileClient(object):
                     self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
                 self.closest_node_id = msg["msg"]
 
-    def connection_valid(self):       
+    def connection_valid(self):
         """Checks all rules of the reconnection_rule.py
         Returns:
             boolean: If all the rules are fulfilled and the connection is currently valid
         """
         Rules = ReconnectionRules(self.env)
         check = all([
-            Rules.latency_rule(self.id, self.closest_node_id, threshold = 10),
-            Rules.roundtrip_rule(self.out_msg_history, self.in_msg_history, threshold = 10)    
+            Rules.latency_rule(self.id, self.closest_node_id,
+                               threshold=self.latency_threshold),
+            Rules.roundtrip_rule(
+                self.out_msg_history, self.in_msg_history, threshold=self.roundtrip_threshold),
+            Rules.timeout_rule(
+                self.out_msg_history, self.in_msg_history, threshold=self.roundtrip_threshold)
         ])
         return check
 
