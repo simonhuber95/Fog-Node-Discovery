@@ -11,7 +11,8 @@ class Metrics(object):
         rec = self.collect_reconnections()
         lat = self.collect_latency()
         count = self.collect_message_count()
-        data_frames = [rec, lat, count]
+        lost = self.collect_lost_messages()
+        data_frames = [rec, lat, count, lost]
         df_merged = reduce(lambda left, right: pd.merge(left, right, on=["client_id"],
                                                         how='outer'), data_frames)
         return df_merged
@@ -54,3 +55,15 @@ class Metrics(object):
         df = pd.DataFrame(data=data, columns=[
                           "client_id", "total_msgs", "in_msgs", "out_msgs"])
         return df
+
+    def collect_lost_messages(self):
+        data = []
+        for client in self.env.clients:
+            in_ids = list(
+                map(lambda msg: msg["msg_id"], client["obj"].in_msg_history))
+            match_ids = list(
+                filter(lambda msg: msg["msg_id"] not in in_ids, client["obj"].out_msg_history))
+            data.append(
+                {"client_id": client["obj"].id, "lost_msgs": len(match_ids)})
+        return pd.DataFrame(data=data, columns=[
+            "client_id", "lost_msgs"])
