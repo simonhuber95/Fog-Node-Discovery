@@ -19,11 +19,8 @@ class Metrics(object):
     def collect_reconnections(self):
         reconnections = []
         for client in self.env.clients:
-            counter = 0
-            for message in client["obj"].out_msg_history:
-                if message["msg_type"] == 2:
-                    counter += 1
-                    rec_id = message["rec_id"]
+            counter = len(
+                list(filter(lambda msg: msg["msg_type"] == 2, client["obj"].out_msg_history)))
             reconnections.append(
                 {"client_id": client["obj"].id, "reconnections": counter})
         df = pd.DataFrame(data=reconnections, columns=[
