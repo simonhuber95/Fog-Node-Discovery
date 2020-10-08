@@ -9,6 +9,7 @@ import uuid
 import random
 import math
 import geopandas as gpd
+import pandas as pd
 import matplotlib.pyplot as plt
 from shapely.geometry import Point
 import yaml
@@ -130,7 +131,7 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
     client = MobileClient(env, id=client_id, plan=client_plan,
                           latency_threshold=config["clients"]["latency_threshold"],
                           roundtrip_threshold=config["clients"]["roundtrip_threshold"],
-                          timeout_threshold=2)#config["clients"]["timeout_threshold"])
+                          timeout_threshold=2)  # config["clients"]["timeout_threshold"])
     env.clients.append({"id": client_id, "obj": client})
 
 # viz = visualize.visualize_movements(env, map_path)
@@ -140,8 +141,6 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
 env.run(until=30)
 
 metrics = Metrics(env)
-reconnections = metrics.collect_reconnections()
-print(reconnections)
-
-
+df = metrics.all()
+print(df)
 # %%
