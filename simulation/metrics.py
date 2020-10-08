@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from functools import reduce
 
 
 class Metrics(object):
@@ -9,15 +10,18 @@ class Metrics(object):
     def all(self):
         rec = self.collect_reconnections()
         lat = self.collect_latency()
-        return pd.merge(rec, lat, on="client_id")
+        count = self.collect_message_count()
+        data_frames = [rec, lat, count]
+        df_merged = reduce(lambda left, right: pd.merge(left, right, on=["client_id"],
+                                                        how='outer'), data_frames)
+        return df_merged
 
     def collect_reconnections(self):
         reconnections = []
         for client in self.env.clients:
             counter = 0
-            rec_id = None
             for message in client["obj"].out_msg_history:
-                if message["rec_id"] != rec_id:
+                if message["msg_type"] == 2:
                     counter += 1
                     rec_id = message["rec_id"]
             reconnections.append(
@@ -31,14 +35,25 @@ class Metrics(object):
         data = []
         for client in self.env.clients:
             latencies = []
-
-            full_history = client["obj"].in_msg_history.ex
-            print(full_history)
-            for message in full_history:
+            history = [*client["obj"].in_msg_history,
+                       *client["obj"].out_msg_history]
+            for message in history:
                 latencies.append(message["latency"])
 
             data.append({"client_id": client["obj"].id, "lat_mean": np.mean(
                 latencies), "lat_max": np.max(latencies), "lat_min": np.min(latencies)})
         df = pd.DataFrame(data=data, columns=[
                           "client_id", "lat_mean", "lat_max", "lat_min"])
+        return df
+
+    def collect_message_count(self):
+        data = []
+        for client in self.env.clients:
+            history = [*client["obj"].in_msg_history,
+                       *client["obj"].out_msg_history]
+
+            data.append({"client_id": client["obj"].id, "total_msgs": len(history),  "out_msgs": len(client["obj"].out_msg_history), "in_msgs": len(
+                client["obj"].in_msg_history)})
+        df = pd.DataFrame(data=data, columns=[
+                          "client_id", "total_msgs", "in_msgs", "out_msgs"])
         return df
