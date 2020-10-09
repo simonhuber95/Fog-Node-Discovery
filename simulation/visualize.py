@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 
 def visualize_movements(env, map_file, EPSG="EPSG:31468"):
-    fig, ax = plt.subplot(1)
+    fig, ax = plt.subplot()
     gdf = geopandas.read_file(map_file)
     gdf = gdf.to_crs("EPSG:31468")
     client_x = []
@@ -16,5 +16,6 @@ def visualize_movements(env, map_file, EPSG="EPSG:31468"):
         client_y.append(y)
 
     gdf.plot(ax = ax)
+    gdf.show()
     #plt.plot(client_x, client_y, ax = ax)
     

@@ -96,7 +96,9 @@ with open(base_path.joinpath("config.yml"), "r") as ymlfile:
 # set path to the OpenBerlinScenario.xml
 client_path = base_path.joinpath(config["clients"]["path"])
 # set path to the map of Berlin
-map_path = base_path.joinpath(config["map"]["path"])
+map_path = base_path.joinpath(config["map"]["city"])
+# set path to the roads of Berlin
+roads_path = base_path.joinpath(config["map"]["roads"])
 # Set amount of client
 amount_clients = config["clients"]["amount"]
 # Set amount of nodes
@@ -118,6 +120,10 @@ env.getDistance = get_distance
 # Reading Clients from Open Berlin Scenario XML
 client_data = et.parse(client_path)
 
+# Reading road layout for Berlin to distribute the nodes
+roads = gpd.read_file(roads_path)
+
+
 print("Init Fog Nodes")
 for i in range(1, amount_nodes+1):
     node_id = uuid.uuid4()
@@ -134,13 +140,16 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
                           timeout_threshold=2)  # config["clients"]["timeout_threshold"])
     env.clients.append({"id": client_id, "obj": client})
 
-# viz = visualize.visualize_movements(env, map_path)
+# visualize.visualize_movements(env, map_path)
 
 # Run Simulation
-
-env.run(until=30)
+env.run(until=config["simulation"]["runtime"])
 
 metrics = Metrics(env)
 df = metrics.all()
 print(df)
+roads_df = roads[roads["fclass"] == "primary"]
+print(roads.count())
+
+
 # %%

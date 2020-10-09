@@ -11,7 +11,8 @@ nodes:
   amount: 3
   discovery_protocol: default
 map:
-  path: data/berlin-latest-free/gis_osm_places_a_free_1.shp
+  city: data/berlin-latest-free/gis_osm_places_a_free_1.shp
+  roads: data/berlin-latest-free/gis_osm_roads_free_1.shp
 bands:
   5G-High:
     distance: 50 #in meter
