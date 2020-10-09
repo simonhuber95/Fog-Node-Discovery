@@ -9,26 +9,12 @@ import uuid
 import random
 import math
 import geopandas as gpd
+import pandas as pd
 import matplotlib.pyplot as plt
 from shapely.geometry import Point
 import yaml
 from pathlib import Path
-
-# Set base path of the project
-base_path = Path().absolute().parent
-
-# open the config.yaml as object
-with open(base_path.joinpath("config.yml"), "r") as ymlfile:
-    config = yaml.load(ymlfile, Loader=yaml.FullLoader)
-
-# set path to the OpenBerlinScenario.xml
-client_path = base_path.joinpath(config["clients"]["path"])
-# set path to the map of Berlin
-map_path = base_path.joinpath(config["map"]["path"])
-# Set amount of client
-amount_clients = config["clients"]["amount"]
-# Set amount of nodes
-amount_nodes = config["nodes"]["amount"]
+from metrics import Metrics
 
 
 def get_participant(id):
@@ -47,7 +33,7 @@ def get_random_node():
     return random.choice(env.nodes)["id"]
 
 
-def send_message(send_id, rec_id, msg, msg_type = 1, msg_id = None):
+def send_message(send_id, rec_id, msg, msg_type=1, msg_id=None):
     """
     Parameter send_id as string: ID of sender
     Paramater rec_id as string: ID of recipient
@@ -99,6 +85,23 @@ def get_distance(send_x, send_y, rec_x, rec_y):
     distance = math.sqrt((rec_x - send_x)**2 + (rec_y - send_y)**2)
     return distance
 
+
+# Set base path of the project
+base_path = Path().absolute().parent
+
+# open the config.yaml as object
+with open(base_path.joinpath("config.yml"), "r") as ymlfile:
+    config = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+# set path to the OpenBerlinScenario.xml
+client_path = base_path.joinpath(config["clients"]["path"])
+# set path to the map of Berlin
+map_path = base_path.joinpath(config["map"]["path"])
+# Set amount of client
+amount_clients = config["clients"]["amount"]
+# Set amount of nodes
+amount_nodes = config["nodes"]["amount"]
+
 # Init Environment
 print("Init Environment")
 env = simpy.Environment()
@@ -125,13 +128,19 @@ print("Init Mobile Clients")
 for client in client_data.getroot().findall('person')[:amount_clients]:
     client_id = client.get("id")
     client_plan = client.find("plan")
-    client = MobileClient(env, id=client_id, plan=client_plan)
+    client = MobileClient(env, id=client_id, plan=client_plan,
+                          latency_threshold=config["clients"]["latency_threshold"],
+                          roundtrip_threshold=config["clients"]["roundtrip_threshold"],
+                          timeout_threshold=2)  # config["clients"]["timeout_threshold"])
     env.clients.append({"id": client_id, "obj": client})
 
 # viz = visualize.visualize_movements(env, map_path)
 
 # Run Simulation
-env.run(until=100)
 
+env.run(until=30)
 
+metrics = Metrics(env)
+df = metrics.all()
+print(df)
 # %%
