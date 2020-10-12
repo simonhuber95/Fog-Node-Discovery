@@ -85,7 +85,14 @@ def get_distance(send_x, send_y, rec_x, rec_y):
     distance = math.sqrt((rec_x - send_x)**2 + (rec_y - send_y)**2)
     return distance
 
-
+def get_boundaries(x_trans, y_trans):
+    x_lower = random.randrange(int(config["map"]["x_min"]), int(config["map"]["x_max"]))
+    y_lower = random.randrange(int(config["map"]["y_min"]), int(config["map"]["y_max"]))
+    x_upper = x_lower + x_trans
+    y_upper = y_lower + y_trans
+    return((x_lower, x_upper, y_lower, y_upper))
+    
+    
 # Set base path of the project
 base_path = Path().absolute().parent
 
@@ -116,10 +123,13 @@ env.getRandomNode = get_random_node
 env.sendMessage = send_message
 env.getLatency = get_latency
 env.getDistance = get_distance
+env.getBoundaries = get_boundaries
 
 # Reading Clients from Open Berlin Scenario XML
 client_data = et.parse(client_path)
 
+# Get boundaries of simulation
+(x_lower, x_upper, y_lower, y_upper) = env.getBoundaries(2000, 2000)
 
 print("Init Fog Nodes")
 for i in range(1, amount_nodes+1):
@@ -128,6 +138,9 @@ for i in range(1, amount_nodes+1):
     env.nodes.append({"id": node_id, "obj": node})
 # Looping over the first x entries
 print("Init Mobile Clients")
+
+print(client_data.getroot().findall('person')[:amount_clients])
+
 for client in client_data.getroot().findall('person')[:amount_clients]:
     client_id = client.get("id")
     client_plan = client.find("plan")
@@ -144,6 +157,7 @@ env.run(until=config["simulation"]["runtime"])
 
 # Printing metrics
 print(Metrics(env).all())
+
 
 # Reading road layout for Berlin to distribute the nodes
 # roads = gpd.read_file(roads_path)

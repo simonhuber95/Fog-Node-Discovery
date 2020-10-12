@@ -1,5 +1,6 @@
 simulation:
   runtime: 1
+  area: 2000 # x and y translation in meter of random selected area
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
   amount: 1
