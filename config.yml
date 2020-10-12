@@ -8,7 +8,7 @@ clients:
   roundtrip_threshold: 1.2
   timeout_threshold: 2
 nodes:
-  path: None
+  path: data/standorte-bundle.json
   amount: 1
   discovery_protocol: default
 map:

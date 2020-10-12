@@ -11,7 +11,7 @@ import math
 import geopandas as gpd
 import pandas as pd
 import matplotlib.pyplot as plt
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 import yaml
 from pathlib import Path
 from metrics import Metrics
@@ -105,6 +105,8 @@ with open(base_path.joinpath("config.yml"), "r") as ymlfile:
 
 # set path to the OpenBerlinScenario.xml
 client_path = base_path.joinpath(config["clients"]["path"])
+# set path to the Cell Tower json
+nodes_path = base_path.joinpath(config["nodes"]["path"])
 # set path to the map of Berlin
 map_path = base_path.joinpath(config["map"]["city"])
 # set path to the roads of Berlin
@@ -130,9 +132,20 @@ env.getBoundaries = get_boundaries
 
 # Reading Clients from Open Berlin Scenario XML
 client_data = et.parse(client_path)
-
+# Readinge Node coordinates from json
+node_df = pd.read_json(nodes_path)
 # Get boundaries of simulation
 (x_lower, x_upper, y_lower, y_upper) = env.getBoundaries(2000, 2000)
+
+
+node_gdf = gpd.GeoDataFrame(
+    node_df, crs="epsg:4326", geometry=gpd.points_from_xy(node_df.Lng, node_df.Lat))
+node_gdf = node_gdf.to_crs(epsg="31468").drop(columns=["Lng","Lat"])
+print(node_gdf.head())
+border = gpd.GeoSeries([Polygon([(x_lower,y_lower), (x_upper,y_lower), (x_lower,y_upper), (x_upper,y_upper)])])
+node_gdf = gpd.overlay(node_gdf, border, how="intersection")
+print(node_gdf)
+
 
 print("Init Fog Nodes")
 for i in range(1, amount_nodes+1):
@@ -143,7 +156,7 @@ for i in range(1, amount_nodes+1):
 print("Init Mobile Clients")
 
 
-for client in client_data.getroot().iterfind('person'):  
+for client in client_data.getroot().iterfind('person'):
     client_plan = client.find("plan")
     if(x_lower < float(client_plan.find('activity').attrib["x"]) < x_upper and
        y_lower < float(client_plan.find('activity').attrib["y"]) < y_upper):
