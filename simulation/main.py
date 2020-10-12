@@ -85,14 +85,17 @@ def get_distance(send_x, send_y, rec_x, rec_y):
     distance = math.sqrt((rec_x - send_x)**2 + (rec_y - send_y)**2)
     return distance
 
+
 def get_boundaries(x_trans, y_trans):
-    x_lower = random.randrange(int(config["map"]["x_min"]), int(config["map"]["x_max"]))
-    y_lower = random.randrange(int(config["map"]["y_min"]), int(config["map"]["y_max"]))
+    x_lower = random.randrange(
+        int(config["map"]["x_min"]), int(config["map"]["x_max"]))
+    y_lower = random.randrange(
+        int(config["map"]["y_min"]), int(config["map"]["y_max"]))
     x_upper = x_lower + x_trans
     y_upper = y_lower + y_trans
     return((x_lower, x_upper, y_lower, y_upper))
-    
-    
+
+
 # Set base path of the project
 base_path = Path().absolute().parent
 
@@ -139,16 +142,20 @@ for i in range(1, amount_nodes+1):
 # Looping over the first x entries
 print("Init Mobile Clients")
 
-print(client_data.getroot().findall('person')[:amount_clients])
 
-for client in client_data.getroot().findall('person')[:amount_clients]:
-    client_id = client.get("id")
+for client in client_data.getroot().iterfind('person'):  
     client_plan = client.find("plan")
-    client = MobileClient(env, id=client_id, plan=client_plan,
-                          latency_threshold=config["clients"]["latency_threshold"],
-                          roundtrip_threshold=config["clients"]["roundtrip_threshold"],
-                          timeout_threshold=2)  # config["clients"]["timeout_threshold"])
-    env.clients.append({"id": client_id, "obj": client})
+    if(x_lower < float(client_plan.find('activity').attrib["x"]) < x_upper and
+       y_lower < float(client_plan.find('activity').attrib["y"]) < y_upper):
+        client_id = client.get("id")
+        client = MobileClient(env, id=client_id, plan=client_plan,
+                              latency_threshold=config["clients"]["latency_threshold"],
+                              roundtrip_threshold=config["clients"]["roundtrip_threshold"],
+                              timeout_threshold=config["clients"]["timeout_threshold"])
+        env.clients.append({"id": client_id, "obj": client})
+        # Break out of loop if enough clients got generated
+        if(len(env.clients) == amount_clients):
+            break
 
 # visualize.visualize_movements(env, map_path)
 
