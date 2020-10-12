@@ -120,9 +120,6 @@ env.getDistance = get_distance
 # Reading Clients from Open Berlin Scenario XML
 client_data = et.parse(client_path)
 
-# Reading road layout for Berlin to distribute the nodes
-roads = gpd.read_file(roads_path)
-
 
 print("Init Fog Nodes")
 for i in range(1, amount_nodes+1):
@@ -145,11 +142,17 @@ for client in client_data.getroot().findall('person')[:amount_clients]:
 # Run Simulation
 env.run(until=config["simulation"]["runtime"])
 
-metrics = Metrics(env)
-df = metrics.all()
-print(df)
-roads_df = roads[roads["fclass"] == "primary"]
-print(roads.count())
+# Printing metrics
+print(Metrics(env).all())
+
+# Reading road layout for Berlin to distribute the nodes
+# roads = gpd.read_file(roads_path)
+# roads = roads.to_crs(epsg="31468")
+# Retrieving the boundaries of Berlin
+# pd.options.display.float_format = "{:.4f}".format
+# boundaries = roads["geometry"].bounds
+# print(boundaries.min())
+# print(boundaries.max())
 
 
 # %%

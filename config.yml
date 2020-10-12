@@ -1,18 +1,22 @@
 simulation:
-  runtime: 20
+  runtime: 1
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
-  amount: 3
+  amount: 1
   latency_threshold: 0.9
   roundtrip_threshold: 1.2
   timeout_threshold: 2
 nodes:
   path: None
-  amount: 3
+  amount: 1
   discovery_protocol: default
 map:
   city: data/berlin-latest-free/gis_osm_places_a_free_1.shp
   roads: data/berlin-latest-free/gis_osm_roads_free_1.shp
+  x_min: 4573063.1296
+  x_max: 4620052.7497
+  y_min: 5800675.0537
+  y_max: 5839575.7712
 bands:
   5G-High:
     distance: 50 #in meter
