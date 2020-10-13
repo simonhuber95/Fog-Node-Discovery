@@ -133,19 +133,14 @@ env.getBoundaries = get_boundaries
 # Reading Clients from Open Berlin Scenario XML
 client_data = et.parse(client_path)
 # Readinge Node coordinates from json
-node_df = pd.read_json(nodes_path)
+nodes_gdf = gpd.read_file(nodes_path)
 # Get boundaries of simulation
 (x_lower, x_upper, y_lower, y_upper) = env.getBoundaries(2000, 2000)
+# Filter Nodes withon boundary
+nodes_gdf = nodes_gdf.cx[x_lower:y_lower, x_upper:y_upper]
 
-
-node_gdf = gpd.GeoDataFrame(
-    node_df, crs="epsg:4326", geometry=gpd.points_from_xy(node_df.Lng, node_df.Lat))
-node_gdf = node_gdf.to_crs(epsg="31468").drop(columns=["Lng","Lat"])
-print(node_gdf.head())
-border = gpd.GeoSeries([Polygon([(x_lower,y_lower), (x_upper,y_lower), (x_lower,y_upper), (x_upper,y_upper)])])
-node_gdf = gpd.overlay(node_gdf, border, how="intersection")
-print(node_gdf)
-
+print(nodes_gdf.count(), x_lower, x_upper, y_lower, y_upper)
+print(nodes_gdf)
 
 print("Init Fog Nodes")
 for i in range(1, amount_nodes+1):

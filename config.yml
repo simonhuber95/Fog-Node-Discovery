@@ -8,7 +8,7 @@ clients:
   roundtrip_threshold: 1.2
   timeout_threshold: 2
 nodes:
-  path: data/standorte-bundle.json
+  path: data/cell_towers/cell_towers.shp
   amount: 1
   discovery_protocol: default
 map:
