@@ -1,6 +1,6 @@
 simulation:
   runtime: 1
-  area: 2000 # x and y translation in meter of random selected area
+  area: 4000 # x and y translation in meter of random selected area
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
   amount: 1
@@ -9,7 +9,7 @@ clients:
   timeout_threshold: 2
 nodes:
   path: data/cell_towers/cell_towers.shp
-  amount: 1
+  min_nodes: 1
   discovery_protocol: default
 map:
   city: data/berlin-latest-free/gis_osm_places_a_free_1.shp
