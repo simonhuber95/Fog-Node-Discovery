@@ -8,7 +8,7 @@ class FogNode(object):
         self.env = env
         self.id = id
         self.discovery_protocol = discovery_protocol
-        self.resource = Resource(env, slots)
+        self.resource = Resource(env, 1 if slots < 1 else slots)
         self.msg_pipe = simpy.Store(env)
         self.probe_event = env.event()
         self.phy_x = phy_x
