@@ -149,9 +149,10 @@ while True:
     print("Simulation area x: {} - {}, y: {} - {}".format(x_lower,
                                                           x_upper, y_lower, y_upper))
     # Filter Nodes withon boundary
-    filtered_nodes_gdf=nodes_gdf.cx[x_lower:y_lower, x_upper:y_upper]
+    filtered_nodes_gdf=nodes_gdf.cx[x_lower:x_upper, y_lower:y_upper]
     print("Nodes found:", len(filtered_nodes_gdf))
     if(len(filtered_nodes_gdf) >= min_nodes):
+        print(filtered_nodes_gdf)
         break
 
 print("Init Fog Nodes")
