@@ -51,7 +51,7 @@ class MobileClient(object):
             distance = entry['distance']
             to_x = entry['x']
             to_y = entry['y']
-
+            if(duration < 1): continue
             # Calculating the deltas in each direction
             # the order is (latitude, longitude) or (y, x) in Cartesian terms
             # dist_x = geo_distance.distance((0, self.phy_x), (0, to_x))

@@ -95,86 +95,86 @@ def get_boundaries(x_trans, y_trans, method="center"):
             int(config["map"]["y_min"]), int(config["map"]["y_max"]))
     # center method
     elif(method == "center"):
-        x_lower = int((config["map"]["x_min"] + config["map"]["x_max"])/2 - x_trans/2)
-        y_lower=int((config["map"]["y_min"] + config["map"]["y_max"])/2 - y_trans/2)
-    x_upper=x_lower + x_trans
-    y_upper=y_lower + y_trans
+        x_lower = int((config["map"]["x_min"] +
+                       config["map"]["x_max"])/2 - x_trans/2)
+        y_lower = int((config["map"]["y_min"] +
+                       config["map"]["y_max"])/2 - y_trans/2)
+    x_upper = x_lower + x_trans
+    y_upper = y_lower + y_trans
 
     return((x_lower, x_upper, y_lower, y_upper))
 
 
 # Set base path of the project
-base_path=Path().absolute().parent
+base_path = Path().absolute().parent
 
 # open the config.yaml as object
 with open(base_path.joinpath("config.yml"), "r") as ymlfile:
-    config=yaml.load(ymlfile, Loader=yaml.FullLoader)
+    config = yaml.load(ymlfile, Loader=yaml.FullLoader)
 
 # set path to the OpenBerlinScenario.xml
-client_path=base_path.joinpath(config["clients"]["path"])
+client_path = base_path.joinpath(config["clients"]["path"])
 # set path to the Cell Tower json
-nodes_path=base_path.joinpath(config["nodes"]["path"])
+nodes_path = base_path.joinpath(config["nodes"]["path"])
 # set path to the map of Berlin
-map_path=base_path.joinpath(config["map"]["city"])
+map_path = base_path.joinpath(config["map"]["city"])
 # set path to the roads of Berlin
-roads_path=base_path.joinpath(config["map"]["roads"])
+roads_path = base_path.joinpath(config["map"]["roads"])
 # Set amount of client
-amount_clients=config["clients"]["amount"]
+amount_clients = config["clients"]["amount"]
 # Set amount of nodes
-min_nodes=config["nodes"]["min_nodes"]
+min_nodes = config["nodes"]["min_nodes"]
 
 # Init Environment
 print("Init Environment")
-env=simpy.Environment()
-env.clients=[]
-env.nodes=[]
+env = simpy.Environment()
+env.clients = []
+env.nodes = []
 
 # Assign functions to Environment Object
-env.getParticipant=get_participant
-env.getRandomNode=get_random_node
-env.sendMessage=send_message
-env.getLatency=get_latency
-env.getDistance=get_distance
-env.getBoundaries=get_boundaries
+env.getParticipant = get_participant
+env.getRandomNode = get_random_node
+env.sendMessage = send_message
+env.getLatency = get_latency
+env.getDistance = get_distance
+env.getBoundaries = get_boundaries
 
 # Reading Clients from Open Berlin Scenario XML
-client_data=et.parse(client_path)
+client_data = et.parse(client_path)
 # Readinge Node coordinates from json
-nodes_gdf=gpd.read_file(nodes_path)
+nodes_gdf = gpd.read_file(nodes_path)
 
 while True:
     # Get boundaries of simulation
-    (x_lower, x_upper, y_lower, y_upper)=env.getBoundaries(
-        config["simulation"]["area"], config["simulation"]["area"], method = "center")
+    (x_lower, x_upper, y_lower, y_upper) = env.getBoundaries(
+        config["simulation"]["area"], config["simulation"]["area"], method="center")
     print("Simulation area x: {} - {}, y: {} - {}".format(x_lower,
                                                           x_upper, y_lower, y_upper))
     # Filter Nodes withon boundary
-    filtered_nodes_gdf=nodes_gdf.cx[x_lower:x_upper, y_lower:y_upper]
+    filtered_nodes_gdf = nodes_gdf.cx[x_lower:x_upper, y_lower:y_upper]
     print("Nodes found:", len(filtered_nodes_gdf))
     if(len(filtered_nodes_gdf) >= min_nodes):
-        print(filtered_nodes_gdf)
         break
 
 print("Init Fog Nodes")
 for index, node_entry in filtered_nodes_gdf.iterrows():
-    print(node_entry["geometry"].x, node_entry["geometry"].y)
-    node_id=uuid.uuid4()
-    node=FogNode(env, id=node_id, discovery_protocol={
-    }, slots = node_entry["Antennas"], phy_x = node_entry["geometry"].x, phy_y = node_entry["geometry"].y)
+    node_id = uuid.uuid4()
+    node = FogNode(env, id=node_id, discovery_protocol={
+    }, slots=node_entry["Antennas"], phy_x=node_entry["geometry"].x, phy_y=node_entry["geometry"].y)
     env.nodes.append({"id": node_id, "obj": node})
 # Looping over the first x entries
 print("Init Mobile Clients")
 
 
 for client in client_data.getroot().iterfind('person'):
-    client_plan=client.find("plan")
+    client_plan = client.find("plan")
     if(x_lower < float(client_plan.find('activity').attrib["x"]) < x_upper and
        y_lower < float(client_plan.find('activity').attrib["y"]) < y_upper):
-        client_id=client.get("id")
-        client=MobileClient(env, id = client_id, plan = client_plan,
-                              latency_threshold = config["clients"]["latency_threshold"],
-                              roundtrip_threshold = config["clients"]["roundtrip_threshold"],
-                              timeout_threshold = config["clients"]["timeout_threshold"])
+        client_id = client.get("id")
+        client = MobileClient(env, id=client_id, plan=client_plan,
+                              latency_threshold=config["clients"]["latency_threshold"],
+                              roundtrip_threshold=config["clients"]["roundtrip_threshold"],
+                              timeout_threshold=config["clients"]["timeout_threshold"])
         env.clients.append({"id": client_id, "obj": client})
         # Break out of loop if enough clients got generated
         if(len(env.clients) == amount_clients):
@@ -183,7 +183,7 @@ for client in client_data.getroot().iterfind('person'):
 # visualize.visualize_movements(env, map_path)
 
 # Run Simulation
-env.run(until = config["simulation"]["runtime"])
+env.run(until=config["simulation"]["runtime"])
 
 # Printing metrics
 print(Metrics(env).all())

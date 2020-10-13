@@ -1,9 +1,9 @@
 simulation:
-  runtime: 1
+  runtime: 3000 # in seconds
   area: 1000 # x and y translation in meter of random selected area
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
-  amount: 1
+  amount: 10
   latency_threshold: 0.9
   roundtrip_threshold: 1.2
   timeout_threshold: 2
