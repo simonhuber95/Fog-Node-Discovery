@@ -40,12 +40,9 @@ class MobileClient(object):
             print("Client {}: active, current location x: {}, y: {}".format(
                 self.id, self.phy_x, self.phy_y))
         # Starting the operating processes
-        try:
-            self.out_process = self.env.process(self.out_connect())
-            self.in_process = self.env.process(self.in_connect())
-            self.move_process = self.env.process(self.move())
-        except simpy.Interrupt as interrupt:
-            print("Client {} stopped: {}".format(self.id, interrupt.cause))
+        self.out_process = self.env.process(self.out_connect())
+        self.in_process = self.env.process(self.in_connect())
+        self.move_process = self.env.process(self.move())
 
     def move(self):
         if self.verbose:
@@ -75,8 +72,8 @@ class MobileClient(object):
                 try:
                     yield self.env.timeout(1)
                 except simpy.Interrupt as interrupt:
-                    print("Client {} stopped: {}".format(self.id, interrupt.cause))
-                
+                    print("Client {} stopped: {}".format(
+                        self.id, interrupt.cause))
 
     def out_connect(self):
         while (True):
@@ -184,4 +181,4 @@ class MobileClient(object):
         """
         self.out_process.interrupt(cause)
         self.in_process.interrupt(cause)
-        # self.move_process.interrupt(cause)
+        # self.move_process.fail(exception=Exception)

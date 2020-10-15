@@ -15,6 +15,7 @@ from shapely.geometry import Point, Polygon
 import yaml
 from pathlib import Path
 from metrics import Metrics
+from dummy import Dummy
 
 
 def get_participant(id):
@@ -146,8 +147,8 @@ nodes_gdf = gpd.read_file(nodes_path)
 while True:
     # Get boundaries of simulation
     (x_lower, x_upper, y_lower, y_upper) = env.getBoundaries(
-        config["simulation"]["area"], config["simulation"]["area"], method="center")
-    
+        config["simulation"]["area"], config["simulation"]["area"], method=config["simulation"]["area_selection"])
+
     print("Simulation area x: {} - {}, y: {} - {}".format(x_lower,
                                                           x_upper, y_lower, y_upper))
     # Filter Nodes withon boundary
@@ -183,6 +184,9 @@ for client in client_data.getroot().iterfind('person'):
 
 # visualize.visualize_movements(env, map_path)
 
+
+# add dummy
+dummy = Dummy(env)
 # Run Simulation
 env.run(until=config["simulation"]["runtime"])
 

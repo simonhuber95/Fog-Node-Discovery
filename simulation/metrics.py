@@ -53,7 +53,7 @@ class Metrics(object):
             data.append({"client_id": client["obj"].id, "total_msgs": len(history),  "out_msgs": len(client["obj"].out_msg_history), "in_msgs": len(
                 client["obj"].in_msg_history)})
         df = pd.DataFrame(data=data, columns=[
-                          "client_id", "total_msgs", "in_msgs", "out_msgs"])
+                          "client_id", "total_msgs", "out_msgs", "in_msgs"])
         return df
 
     def collect_lost_messages(self):
