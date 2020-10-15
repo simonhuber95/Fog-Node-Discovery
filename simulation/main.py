@@ -173,10 +173,10 @@ for client in client_data.getroot().iterfind('person'):
     if(x_lower < float(client_plan.find('activity').attrib["x"]) < x_upper and
        y_lower < float(client_plan.find('activity').attrib["y"]) < y_upper):
         client_id = client.get("id")
-        client = MobileClient(env, id=client_id, plan=client_plan,
-                              latency_threshold=config["clients"]["latency_threshold"],
-                              roundtrip_threshold=config["clients"]["roundtrip_threshold"],
-                              timeout_threshold=config["clients"]["timeout_threshold"])
+        client = 1#MobileClient(env, id=client_id, plan=client_plan,
+                            #   latency_threshold=config["clients"]["latency_threshold"],
+                            #   roundtrip_threshold=config["clients"]["roundtrip_threshold"],
+                            #   timeout_threshold=config["clients"]["timeout_threshold"])
         env.clients.append({"id": client_id, "obj": client})
         # Break out of loop if enough clients got generated
         if(len(env.clients) == amount_clients):
@@ -191,7 +191,7 @@ dummy = Dummy(env)
 env.run(until=config["simulation"]["runtime"])
 
 # Printing metrics
-print(Metrics(env).all())
+# print(Metrics(env).all())
 
 
 # Reading road layout for Berlin to distribute the nodes
