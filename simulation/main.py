@@ -139,7 +139,6 @@ env.getLatency = get_latency
 env.getDistance = get_distance
 env.getBoundaries = get_boundaries
 
-# Reading Clients from Open Berlin Scenario XML
 client_data = et.parse(client_path)
 # Readinge Node coordinates from json
 nodes_gdf = gpd.read_file(nodes_path)
@@ -148,12 +147,14 @@ while True:
     # Get boundaries of simulation
     (x_lower, x_upper, y_lower, y_upper) = env.getBoundaries(
         config["simulation"]["area"], config["simulation"]["area"], method="center")
+    
     print("Simulation area x: {} - {}, y: {} - {}".format(x_lower,
                                                           x_upper, y_lower, y_upper))
     # Filter Nodes withon boundary
     filtered_nodes_gdf = nodes_gdf.cx[x_lower:x_upper, y_lower:y_upper]
     print("Nodes found:", len(filtered_nodes_gdf))
     if(len(filtered_nodes_gdf) >= min_nodes):
+        env.boundaries = (x_lower, x_upper, y_lower, y_upper)
         break
 
 print("Init Fog Nodes")

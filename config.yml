@@ -1,6 +1,7 @@
 simulation:
-  runtime: 3000 # in seconds
-  area: 1000 # x and y translation in meter of random selected area
+  runtime: 30 # in seconds
+  area: 500 # x and y translation in meter of random selected area
+  verbose: True
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
   amount: 10
