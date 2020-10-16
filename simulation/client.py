@@ -7,7 +7,7 @@ from reconnection_rules import ReconnectionRules
 
 
 class MobileClient(object):
-    def __init__(self, env, id, plan, latency_threshold=0.9, roundtrip_threshold=1.2, timeout_threshold=2):
+    def __init__(self, env, id, plan, latency_threshold=0.9, roundtrip_threshold=1.2, timeout_threshold=2, verbose=True):
         """ Initializes a Mobile Client
         Args:
             env (simpy.Environment): The Environment of the simulation
@@ -18,6 +18,7 @@ class MobileClient(object):
         self.id = id
         self.plan = plan
         self.connected = False
+        self.verbose = verbose
         # ID of closest node as string
         self.closest_node_id = ""
         self.latency_threshold = latency_threshold
@@ -35,46 +36,53 @@ class MobileClient(object):
         self.pairs = zip(plan.findall('activity')[1:], plan.findall('leg'))
         self.virt_x = 0
         self.virt_y = 0
-        print("Client {}: active, current location x: {}, y: {}".format(
-            self.id, self.phy_x, self.phy_y))
+        if self.verbose:
+            print("Client {}: active, current location x: {}, y: {}".format(
+                self.id, self.phy_x, self.phy_y))
         # Starting the operating processes
         self.out_process = self.env.process(self.out_connect())
         self.in_process = self.env.process(self.in_connect())
         self.move_process = self.env.process(self.move())
+        self.monitor_process = self.env.process(self.monitor())
+        self.stop_event = env.event()
 
     def move(self):
-        print("Client {}: starting move Process".format(self.id))
+        if self.verbose:
+            print("Client {}: starting move Process".format(self.id))
         # Iterate through every leg & activity in seperate process
         for activity, leg in self.pairs:
             entry = self.get_entry_from_data(activity=activity, leg=leg)
             duration = entry['trav_time']
-            distance = entry['distance']
+            # distance = entry['distance']
             to_x = entry['x']
             to_y = entry['y']
+            # skip this leg, if the duration is 0
+            if(duration < 1):
+                continue
 
-            # Calculating the deltas in each direction
-            # the order is (latitude, longitude) or (y, x) in Cartesian terms
-            # dist_x = geo_distance.distance((0, self.phy_x), (0, to_x))
-            # dist_y = geo_distance.distance((self.phy_y, 0), (to_y, 0))
             dist_x = to_x - self.phy_x
             dist_y = to_y - self.phy_y
             vel_x = dist_x / duration
             vel_y = dist_y / duration
+            # Moving until x and y match the end point of the leg
             while(round(to_x, 2) != round(self.phy_x, 2) and round(to_y, 2) != round(self.phy_y, 2)):
                 self.phy_x += vel_x
                 self.phy_y += vel_y
-
-                yield self.env.timeout(1)
-
-                # print("Timestep: {} Client id: {} x:{:.2f} y:{:.2f}".format(
-                #     self.env.now, self.id, self.phy_x, self.phy_y))
-                # print("Delta x: {}, Delta y: {}".format(round(to_x - self.phy_x, 2), round(to_y - self.phy_y, 2)))
+                # Stop Client if it steps out of bounds
+                if not self.in_bounds():
+                    self.stop_event.succeed("Out of geographical bounds")
+                    self.stop_event = self.env.event()
+                try:
+                    yield self.env.timeout(1)
+                except simpy.Interrupt:
+                    return
 
     def out_connect(self):
         while (True):
             # If no node is registered or connection not valid, trigger the event to search for the closest node
             if(not self.closest_node_id or not self.connection_valid()):
-                print("Client {}: Probing network".format(self.id))
+                if self.verbose:
+                    print("Client {}: Probing network".format(self.id))
                 random_node = self.env.getRandomNode()
                 out_msg = self.env.sendMessage(self.id, random_node,
                                                "Request Closest node", msg_type=2)
@@ -84,27 +92,45 @@ class MobileClient(object):
                 out_msg = self.env.sendMessage(
                     self.id, self.closest_node_id, "Client {} sends a task".format(self.id))
                 self.out_msg_history.append(out_msg)
-
-            yield self.env.timeout(random.randint(1, 5))
+            try:
+                yield self.env.timeout(random.randint(1, 5))
+            except simpy.Interrupt:
+                return
 
     def in_connect(self):
         while(True):
-            msg = yield self.msg_pipe.get()
-            # Waiting the given latency
-            yield self.env.timeout(msg["latency"])
+            try:
+                msg = yield self.msg_pipe.get()
+                # Waiting the given latency
+                yield self.env.timeout(msg["latency"])
+            except simpy.Interrupt:
+                return
+
             # Append message to history
             self.in_msg_history.append(msg)
             # Extracting message Type
             msg_type = msg["msg_type"]
             # Standard task message
             if(msg_type == 1):
-                print("Client {}: Message from Node {} at {} from {}: {}".format(
-                    self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
+                if self.verbose:
+                    print("Client {}: Message from Node {} at {} from {}: {}".format(
+                        self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
             # Closest node message
             elif(msg_type == 2):
-                print("Client {}: Message from Node {} at {} from {}: Closest node is {}".format(
-                    self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
+                if self.verbose:
+                    print("Client {}: Message from Node {} at {} from {}: Closest node is {}".format(
+                        self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
                 self.closest_node_id = msg["msg"]
+
+    def monitor(self):
+        """Monitor process for the client.
+        Invokes the stop method if the stop event is called
+
+        Yields:
+            simpy.Event: Stop event called with a cause
+        """
+        cause = yield self.stop_event
+        self.stop(cause)
 
     def connection_valid(self):
         """Checks all rules of the reconnection_rule.py
@@ -146,3 +172,31 @@ class MobileClient(object):
         # Setting the distance as float in meters
         entry['distance'] = float(route.attrib['distance'])
         return entry
+
+    def in_bounds(self):
+        """Checks if the Client is in bounds of the simulation
+
+        Returns:
+            boolean: Whether or not the client is in bounds
+        """
+        (x_lower, x_upper, y_lower, y_upper) = self.env.boundaries
+        if(x_lower < self.phy_x < x_upper and y_lower < self.phy_y < y_upper):
+            return True
+        else:
+            return False
+
+    def stop(self, cause):
+        """Stops all client processes, should only be invoked by the monitor process
+
+        Args:
+            cause (string): Description of the cause, that made the client stop
+        """
+        if(self.out_process.is_alive):
+            self.out_process.interrupt(cause)
+        if(self.in_process.is_alive):
+            self.in_process.interrupt(cause)
+        if(self.move_process.is_alive):
+            self.move_process.interrupt(cause)
+        if(self.verbose):
+            print("Client {} stopped: {}".format(self.id, cause))
+        # self.move_process.fail(exception=Exception)
