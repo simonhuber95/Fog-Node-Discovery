@@ -189,7 +189,6 @@ for client in client_data.getroot().iterfind('person'):
 dummy = Dummy(env)
 # Run Simulation
 env.run(until=config["simulation"]["runtime"])
-
 # Printing metrics
 # print(Metrics(env).all())
 

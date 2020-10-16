@@ -43,6 +43,8 @@ class MobileClient(object):
         self.out_process = self.env.process(self.out_connect())
         self.in_process = self.env.process(self.in_connect())
         self.move_process = self.env.process(self.move())
+        self.monitor_process = self.env.process(self.monitor())
+        self.stop_event = env.event()
 
     def move(self):
         if self.verbose:
@@ -120,6 +122,16 @@ class MobileClient(object):
                         self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
                 self.closest_node_id = msg["msg"]
 
+    def monitor(self):
+        """Monitor process for the client.
+        Invokes the stop method if the stop event is called
+
+        Yields:
+            simpy.Event: Stop event called with a cause
+        """
+        cause = yield self.stop_event
+        self.stop(cause)
+
     def connection_valid(self):
         """Checks all rules of the reconnection_rule.py
         Returns:
@@ -174,11 +186,15 @@ class MobileClient(object):
             return False
 
     def stop(self, cause):
-        """Stops all client processes
+        """Stops all client processes, should only be invoked by the monitor process
 
         Args:
             cause (string): Description of the cause, that made the client stop
         """
-        self.out_process.interrupt(cause)
-        self.in_process.interrupt(cause)
+        if(self.out_process.is_alive):
+            self.out_process.interrupt(cause)
+        if(self.in_process.is_alive):
+            self.in_process.interrupt(cause)
+        if(self.move_process.is_alive):
+            self.move_process.interrupt(cause)
         # self.move_process.fail(exception=Exception)
