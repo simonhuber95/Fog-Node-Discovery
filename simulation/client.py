@@ -70,12 +70,12 @@ class MobileClient(object):
                 self.phy_y += vel_y
                 # Stop Client if it steps out of bounds
                 if not self.in_bounds():
-                    self.stop("Client out of bounds")
+                    self.stop_event.succeed("Out of geographical bounds")
+                    self.stop_event = self.env.event()
                 try:
                     yield self.env.timeout(1)
-                except simpy.Interrupt as interrupt:
-                    print("Client {} stopped: {}".format(
-                        self.id, interrupt.cause))
+                except simpy.Interrupt:
+                    return
 
     def out_connect(self):
         while (True):
@@ -94,8 +94,8 @@ class MobileClient(object):
                 self.out_msg_history.append(out_msg)
             try:
                 yield self.env.timeout(random.randint(1, 5))
-            except simpy.Interrupt as interrupt:
-                print("Client {} stopped: {}".format(self.id, interrupt.cause))
+            except simpy.Interrupt:
+                return
 
     def in_connect(self):
         while(True):
@@ -103,8 +103,8 @@ class MobileClient(object):
                 msg = yield self.msg_pipe.get()
                 # Waiting the given latency
                 yield self.env.timeout(msg["latency"])
-            except simpy.Interrupt as interrupt:
-                print("Client {} stopped: {}".format(self.id, interrupt.cause))
+            except simpy.Interrupt:
+                return
 
             # Append message to history
             self.in_msg_history.append(msg)
@@ -197,4 +197,5 @@ class MobileClient(object):
             self.in_process.interrupt(cause)
         if(self.move_process.is_alive):
             self.move_process.interrupt(cause)
+        print("Client {} stopped: {}".format(self.id, cause))
         # self.move_process.fail(exception=Exception)
