@@ -12,7 +12,8 @@ class Metrics(object):
         lat = self.collect_latency()
         count = self.collect_message_count()
         lost = self.collect_lost_messages()
-        data_frames = [rec, lat, count, lost]
+        active = self.collect_active_time()
+        data_frames = [rec, lat, count, lost, active]
         df_merged = reduce(lambda left, right: pd.merge(left, right, on=["client_id"],
                                                         how='outer'), data_frames)
         return df_merged
@@ -67,3 +68,13 @@ class Metrics(object):
                 {"client_id": client["obj"].id, "lost_msgs": len(match_ids)})
         return pd.DataFrame(data=data, columns=[
             "client_id", "lost_msgs"])
+
+    def collect_active_time(self):
+        data = []
+        for client in self.env.clients:
+            first_msg = client["obj"].out_msg_history[0]
+            last_msg = client["obj"].out_msg_history[-1]
+            active_time = last_msg["timestamp"] - first_msg["timestamp"]
+            data.append(
+                {"client_id": client["obj"].id, "active_time": active_time})
+        return pd.DataFrame(data=data, columns=["client_id", "active_time"])

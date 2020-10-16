@@ -122,7 +122,7 @@ map_path = base_path.joinpath(config["map"]["city"])
 # set path to the roads of Berlin
 roads_path = base_path.joinpath(config["map"]["roads"])
 # Set amount of client
-amount_clients = config["clients"]["amount"]
+max_clients = config["clients"]["max_clients"]
 # Set amount of nodes
 min_nodes = config["nodes"]["min_nodes"]
 
@@ -161,8 +161,12 @@ while True:
 print("Init Fog Nodes")
 for index, node_entry in filtered_nodes_gdf.iterrows():
     node_id = uuid.uuid4()
-    node = FogNode(env, id=node_id, discovery_protocol={
-    }, slots=node_entry["Antennas"], phy_x=node_entry["geometry"].x, phy_y=node_entry["geometry"].y)
+    node = FogNode(env, id=node_id,
+                   discovery_protocol={},
+                   slots=node_entry["Antennas"],
+                   phy_x=node_entry["geometry"].x,
+                   phy_y=node_entry["geometry"].y,
+                   verbose=config["simulation"]["verbose"])
     env.nodes.append({"id": node_id, "obj": node})
 # Looping over the first x entries
 print("Init Mobile Clients")
@@ -176,10 +180,11 @@ for client in client_data.getroot().iterfind('person'):
         client = MobileClient(env, id=client_id, plan=client_plan,
                               latency_threshold=config["clients"]["latency_threshold"],
                               roundtrip_threshold=config["clients"]["roundtrip_threshold"],
-                              timeout_threshold=config["clients"]["timeout_threshold"])
+                              timeout_threshold=config["clients"]["timeout_threshold"],
+                              verbose=config["simulation"]["verbose"])
         env.clients.append({"id": client_id, "obj": client})
         # Break out of loop if enough clients got generated
-        if(len(env.clients) == amount_clients):
+        if(not max_clients and len(env.clients) == max_clients):
             break
 
 # visualize.visualize_movements(env, map_path)

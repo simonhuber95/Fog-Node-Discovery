@@ -197,5 +197,6 @@ class MobileClient(object):
             self.in_process.interrupt(cause)
         if(self.move_process.is_alive):
             self.move_process.interrupt(cause)
-        print("Client {} stopped: {}".format(self.id, cause))
+        if(self.verbose):
+            print("Client {} stopped: {}".format(self.id, cause))
         # self.move_process.fail(exception=Exception)
