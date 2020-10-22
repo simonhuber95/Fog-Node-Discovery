@@ -1,4 +1,4 @@
-from heightcoodinates import HeightCoordinates
+from .heightcoodinates import HeightCoordinates
 import collections
 import random
 import math
@@ -10,15 +10,6 @@ ERROR_MIN = 0.1
 cc = 0.25
 ce = 0.5
 initial_error = 10
-
-
-def create(error):
-    np = VivaldiPosition(HeightCoordinates(0, 0, 0))
-
-    if error:
-        np.setErrorEstimate(error)
-
-    return np
 
 
 class VivaldiPosition(object):
@@ -175,6 +166,23 @@ class VivaldiPosition(object):
         pos = VivaldiPosition(coords)
         pos.setErrorEstimate(data[3])
         return pos
+
+    @staticmethod
+    def create(error=None):
+        """Creates a new VivaldiPosition in the Origin
+
+        Args:
+            error (float) *Optional: Error of the VivaldiPosition
+
+        Returns:
+            VivaldiPosition: new VivaldiPosition
+        """
+        np = VivaldiPosition(HeightCoordinates(0, 0, 0))
+
+        if error:
+            np.setErrorEstimate(error)
+
+        return np
 
     def equals(self, other):
         if isinstance(other, VivaldiPosition):

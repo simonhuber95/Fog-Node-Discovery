@@ -1,9 +1,11 @@
 # %%
 
 import simpy
-from client import MobileClient
-from node import FogNode
-import visualize
+from simulation.client import MobileClient
+from simulation.node import FogNode
+from simulation.metrics import Metrics
+from simulation.dummy import Dummy
+import simulation.visualize
 import xml.etree.ElementTree as et
 import uuid
 import random
@@ -14,8 +16,6 @@ import matplotlib.pyplot as plt
 from shapely.geometry import Point, Polygon
 import yaml
 from pathlib import Path
-from metrics import Metrics
-from dummy import Dummy
 
 
 def get_participant(id):
@@ -107,7 +107,7 @@ def get_boundaries(x_trans, y_trans, method="center"):
 
 
 # Set base path of the project
-base_path = Path().absolute().parent
+base_path = Path().absolute()
 
 # open the config.yaml as object
 with open(base_path.joinpath("config.yml"), "r") as ymlfile:

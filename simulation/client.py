@@ -3,7 +3,8 @@ import simpy
 import random
 import geopandas
 from geopy import distance as geo_distance
-from reconnection_rules import ReconnectionRules
+from .reconnection_rules import ReconnectionRules
+from vivaldi.vivaldiposition import VivaldiPosition
 
 
 class MobileClient(object):
@@ -34,8 +35,6 @@ class MobileClient(object):
         self.phy_y = float(plan.find('activity').attrib["y"])
         # Zip all activities and legs into pairs (except for initial activity used for init coordinates)
         self.pairs = zip(plan.findall('activity')[1:], plan.findall('leg'))
-        self.virt_x = 0
-        self.virt_y = 0
         if self.verbose:
             print("Client {}: active, current location x: {}, y: {}".format(
                 self.id, self.phy_x, self.phy_y))
@@ -45,6 +44,9 @@ class MobileClient(object):
         self.move_process = self.env.process(self.move())
         self.monitor_process = self.env.process(self.monitor())
         self.stop_event = env.event()
+
+        # Init the VivaldiPosition
+        self.vivaldiposition = VivaldiPosition.create()
 
     def move(self):
         if self.verbose:
