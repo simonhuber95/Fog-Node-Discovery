@@ -1,6 +1,7 @@
 import simpy
 from simpy import Resource
 import random
+from vivaldiposition import VivaldiPosition
 
 
 class FogNode(object):
@@ -17,6 +18,7 @@ class FogNode(object):
         self.in_msg_history = []
         self.out_msg_history = []
         self.verbose = verbose
+        self.vivaldiposition = VivaldiPosition
 
         # Start the run process everytime an instance is created.
 
