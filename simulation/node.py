@@ -24,6 +24,7 @@ class FogNode(object):
 
         self.connect_process = env.process(self.connect())
         self.closest_node_process = env.process(self.get_closest_node())
+        self.probe_network_process = env.process(self.probe_network())
         if self.verbose:
             print("Fog Node {} active at x:{}, y: {}".format(
                 self.id, self.phy_x, self.phy_y))
@@ -65,7 +66,7 @@ class FogNode(object):
             else:
                 probe_node = random.choice(self.neighbours)["id"]
             out_msg = self.env.send_message(
-                self.id, probe_node, "Probing network", type = 3)
+                self.id, probe_node, "Probing network", msg_type=3)
             self.out_msg_history.append(out_msg)
             yield self.env.timeout(random.randint(1, 5))
 

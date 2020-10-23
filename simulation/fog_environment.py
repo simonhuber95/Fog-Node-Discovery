@@ -2,7 +2,8 @@ from simpy import Environment
 import math
 import uuid
 import random
-from operator import itemgetter 
+from operator import itemgetter
+
 
 class FogEnvironment(Environment):
     def __init__(self, config):
@@ -73,10 +74,28 @@ class FogEnvironment(Environment):
             return 1
 
     def get_distance(self, send_x, send_y, rec_x, rec_y):
+        """Calculates the physical distance between to points in meters
+
+        Args:
+            send_x (float): x coordinate of the sending participant
+            send_y (float): y coordinate of the sending participant
+            rec_x (float): x coordinate of the receiving participant
+            rec_y (float): y coordinate of the receiving participant
+
+        Returns:
+            float: distance between the two participants in meters
+        """
         distance = math.sqrt((rec_x - send_x)**2 + (rec_y - send_y)**2)
         return distance
 
     def get_boundaries(self, x_trans, y_trans, method="center"):
+        """Calculates the boundaries of the simulation based on the map boundaries and the size of the area
+
+        Args:
+            x_trans (int): width of the area (in x direction)
+            y_trans (int): lenght of the area (in y direction)
+            method (str, optional): Sample method of the area. Either "center" or "random" in respect to the whole map. Defaults to "center".
+        """
         # random method
         if(method == "random"):
             x_lower = random.randrange(
@@ -93,17 +112,26 @@ class FogEnvironment(Environment):
         y_upper = y_lower + y_trans
 
         return((x_lower, x_upper, y_lower, y_upper))
-    
-    def get_neighbours(self, req_node, n = 4):
+
+    def get_neighbours(self, req_node, n=4):
+        """Calculates the nearest physical neighbours for a given node. Is used for the Vivaldi protocol
+
+        Args:
+            req_node (FogNode): The node requesting the nearest physical neighbours
+            n (int, optional): amount of neighbours. Defaults to 4 as proposed by Dabek et. al.
+
+        Returns:
+            [List]: The first n elements of a sorted List of nearby nodes by physical distance
+        """
         neighbours = []
         for node in self.nodes:
+            # skip the requesting node
             if(node["id"] == req_node.id):
                 continue
             a_x, a_y = req_node.get_coordinates()
             b_x, b_y = node["obj"].get_coordinates()
             dist = self.get_distance(a_x, a_y, b_x, b_y)
             neighbours.append({"id": node["id"], "distance": dist})
+        # Sort list by distance ascending
         sorted_neighbours = sorted(neighbours, key=itemgetter('distance'))
-        print(sorted_neighbours)
-        closest_neighbours = sorted_neighbours[:4]
-        return closest_neighbours
+        return sorted_neighbours[:4]
