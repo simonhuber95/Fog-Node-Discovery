@@ -2,7 +2,7 @@ from simpy import Environment
 import math
 import uuid
 import random
-
+from operator import itemgetter 
 
 class FogEnvironment(Environment):
     def __init__(self, config):
@@ -93,3 +93,17 @@ class FogEnvironment(Environment):
         y_upper = y_lower + y_trans
 
         return((x_lower, x_upper, y_lower, y_upper))
+    
+    def get_neighbours(self, req_node, n = 4):
+        neighbours = []
+        for node in self.nodes:
+            if(node["id"] == req_node.id):
+                continue
+            a_x, a_y = req_node.get_coordinates()
+            b_x, b_y = node["obj"].get_coordinates()
+            dist = self.get_distance(a_x, a_y, b_x, b_y)
+            neighbours.append({"id": node["id"], "distance": dist})
+        sorted_neighbours = sorted(neighbours, key=itemgetter('distance'))
+        print(sorted_neighbours)
+        closest_neighbours = sorted_neighbours[:4]
+        return closest_neighbours

@@ -56,3 +56,18 @@ class FogNode(object):
             msg_id = in_msg["msg_id"]
             self.env.send_message(self.id, client_id,
                                   closest_node_id, msg_type=2, msg_id=msg_id)
+
+    def probe_network(self):
+        self.neighbours = self.env.get_neighbours(self)
+        while(True):
+            if random.randrange(100) < 50:
+                probe_node = self.env.get_random_node()
+            else:
+                probe_node = random.choice(self.neighbours)["id"]
+            out_msg = self.env.send_message(
+                self.id, probe_node, "Probing network", type = 3)
+            self.out_msg_history.append(out_msg)
+            yield self.env.timeout(random.randint(1, 5))
+
+    def get_coordinates(self):
+        return self.phy_x, self.phy_y
