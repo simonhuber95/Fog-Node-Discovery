@@ -42,7 +42,7 @@ class FogNode(object):
                 self.probe_event.succeed(in_msg)
                 self.probe_event = self.env.event()
             else:
-                out_msg = self.env.sendMessage(
+                out_msg = self.env.send_message(
                     self.id, in_msg["send_id"], "Reply from node", msg_id=in_msg["msg_id"])
                 self.out_msg_history.append(out_msg)
 
@@ -51,8 +51,8 @@ class FogNode(object):
         while True:
             in_msg = yield self.probe_event
             # Closest Node Discovery to be implemented here
-            closest_node_id = self.env.getRandomNode()
+            closest_node_id = self.env.get_random_node()
             client_id = in_msg["send_id"]
             msg_id = in_msg["msg_id"]
-            self.env.sendMessage(self.id, client_id,
-                                 closest_node_id, msg_type=2, msg_id=msg_id)
+            self.env.send_message(self.id, client_id,
+                                  closest_node_id, msg_type=2, msg_id=msg_id)

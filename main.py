@@ -5,6 +5,7 @@ from simulation.client import MobileClient
 from simulation.node import FogNode
 from simulation.metrics import Metrics
 from simulation.dummy import Dummy
+from simulation.fog_environment import FogEnvironment
 import simulation.visualize
 import xml.etree.ElementTree as et
 import uuid
@@ -128,17 +129,18 @@ min_nodes = config["nodes"]["min_nodes"]
 
 # Init Environment
 print("Init Environment")
-env = simpy.Environment()
-env.clients = []
-env.nodes = []
+# env = simpy.Environment()
+# env.clients = []
+# env.nodes = []
+env = FogEnvironment(config)
 
 # Assign functions to Environment Object
-env.getParticipant = get_participant
-env.getRandomNode = get_random_node
-env.sendMessage = send_message
-env.getLatency = get_latency
-env.getDistance = get_distance
-env.getBoundaries = get_boundaries
+# env.getParticipant = get_participant
+# env.getRandomNode = get_random_node
+# env.sendMessage = send_message
+# env.getLatency = get_latency
+# env.getDistance = get_distance
+# env.getBoundaries = get_boundaries
 
 client_data = et.parse(client_path)
 # Readinge Node coordinates from json
@@ -146,7 +148,7 @@ nodes_gdf = gpd.read_file(nodes_path)
 
 while True:
     # Get boundaries of simulation
-    (x_lower, x_upper, y_lower, y_upper) = env.getBoundaries(
+    (x_lower, x_upper, y_lower, y_upper) = env.get_boundaries(
         config["simulation"]["area"], config["simulation"]["area"], method=config["simulation"]["area_selection"])
 
     print("Simulation area x: {} - {}, y: {} - {}".format(x_lower,

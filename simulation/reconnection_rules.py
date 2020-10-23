@@ -14,7 +14,7 @@ class ReconnectionRules(object):
         Returns:
             boolean: Whether the latency is lower than the threshold
         """
-        latency = self.env.getLatency(send_id, rec_id)
+        latency = self.env.get_latency(send_id, rec_id)
 
         return True if latency < threshold else False
 
