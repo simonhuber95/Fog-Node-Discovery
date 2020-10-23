@@ -42,6 +42,10 @@ class FogNode(object):
             if(in_msg["msg_type"] == 2):
                 self.probe_event.succeed(in_msg)
                 self.probe_event = self.env.event()
+            elif(in_msg["msg_type"] == 3):
+                # TODO: nur bei messages die rtt abfragen und vivaldiposition updaten die zurückkommen. keine eingehenden!
+                rtt = self.calculate_rtt(in_msg)
+                print(rtt)
             else:
                 out_msg = self.env.send_message(
                     self.id, in_msg["send_id"], "Reply from node", msg_id=in_msg["msg_id"])
@@ -72,3 +76,10 @@ class FogNode(object):
 
     def get_coordinates(self):
         return self.phy_x, self.phy_y
+
+    def calculate_rtt(self, in_msg):
+        msg_id = in_msg["msg_id"]
+        out_msg = next(
+            (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
+        rtt = in_msg["timestamp"] - out_msg["timestamp"]
+        return rtt

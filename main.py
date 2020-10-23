@@ -18,7 +18,6 @@ from shapely.geometry import Point, Polygon
 import yaml
 from pathlib import Path
 
-
 # Set base path of the project
 base_path = Path().absolute()
 
@@ -41,18 +40,7 @@ min_nodes = config["nodes"]["min_nodes"]
 
 # Init Environment
 print("Init Environment")
-# env = simpy.Environment()
-# env.clients = []
-# env.nodes = []
 env = FogEnvironment(config)
-
-# Assign functions to Environment Object
-# env.getParticipant = get_participant
-# env.getRandomNode = get_random_node
-# env.sendMessage = send_message
-# env.getLatency = get_latency
-# env.getDistance = get_distance
-# env.getBoundaries = get_boundaries
 
 client_data = et.parse(client_path)
 # Readinge Node coordinates from json
