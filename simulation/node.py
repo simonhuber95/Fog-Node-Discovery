@@ -30,6 +30,15 @@ class FogNode(object):
                 self.id, self.phy_x, self.phy_y))
 
     def connect(self):
+        """The connect process of the node.
+        Waits for a new message to come in and distinguishes between the message types
+        Type 1: Regular task message from client, node simply responses
+        Type 2: Clostest node request from client, node triggers the probe event to discover closest node asynchronously
+        Type 3: Probing response or request from other node, at response the own VivaldiPosition is updated, at request, a response is sent
+        Yields:
+            simpy.Event: the incoming message in msg_pipe
+            simpy.Event: the latency as a timeout
+        """
         while True:
             in_msg = yield self.msg_pipe.get()
             self.in_msg_history.append(in_msg)
@@ -80,6 +89,11 @@ class FogNode(object):
                         self.id, in_msg["msg_type"]))
 
     def get_closest_node(self):
+        """Retrieves the closest node from the network for the requesting client
+
+        Yields:
+            simpy.Event: waits for the probe event to be triggered, then searches for the closest node to the client
+        """
         while True:
             in_msg = yield self.probe_event
             # Closest Node Discovery to be implemented here
@@ -90,9 +104,14 @@ class FogNode(object):
                                   closest_node_id, msg_type=2, msg_id=msg_id)
 
     def probe_network(self):
+        """Probing process to continually update the virtual position
+
+        Yields:
+            simpy.Event.timeout: timeout event which decides the probing interval
+        """
         self.neighbours = self.env.get_neighbours(self)
         while(True):
-            # Search for random node, which is not self
+            # Search for random node, which is not self as proposed by Dabek et al at 50% of the time, otherwise probe neighbourhood
             if random.randrange(100) < 50:
                 while(True):
                     probe_node = self.env.get_random_node()
@@ -106,12 +125,31 @@ class FogNode(object):
             yield self.env.timeout(random.randint(1, 5))
 
     def get_coordinates(self):
+        """Returns the physical coordinates of the node
+
+        Returns:
+            float: x coordinate of the node in GK4/EPSG:31468
+            float: y coordinate of the node in GK4/EPSG:31468
+        """
         return self.phy_x, self.phy_y
 
     def get_vivaldi_position(self):
+        """Returns the virtual coordinate
+
+        Returns:
+            VivaldiPosition: the VivaldiPosition of the node
+        """
         return self.vivaldiposition
 
     def calculate_rtt(self, in_msg):
+        """Calculates the round-trip-time (rtt) of the incoming message by comparing timestamps with the out message
+
+        Args:
+            in_msg (dict): Incoming message
+
+        Returns:
+            float: roundtrip time of the message
+        """
         msg_id = in_msg["msg_id"]
         out_msg = next(
             (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
