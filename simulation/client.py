@@ -202,3 +202,26 @@ class MobileClient(object):
         if(self.verbose):
             print("Client {} stopped: {}".format(self.id, cause))
         # self.move_process.fail(exception=Exception)
+
+    def get_vivaldi_position(self):
+            """Returns the virtual coordinate
+
+            Returns:
+                VivaldiPosition: the VivaldiPosition of the node
+            """
+            return self.vivaldiposition
+        
+    def calculate_rtt(self, in_msg):
+        """Calculates the round-trip-time (rtt) of the incoming message by comparing timestamps with the out message
+
+        Args:
+            in_msg (dict): Incoming message
+
+        Returns:
+            float: roundtrip time of the message
+        """
+        msg_id = in_msg["msg_id"]
+        out_msg = next(
+            (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
+        rtt = in_msg["timestamp"] - out_msg["timestamp"]
+        return rtt

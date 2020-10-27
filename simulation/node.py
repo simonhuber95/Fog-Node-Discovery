@@ -1,6 +1,7 @@
 import simpy
 from simpy import Resource
 import random
+from operator import itemgetter
 from vivaldi.vivaldiposition import VivaldiPosition
 
 
@@ -96,8 +97,16 @@ class FogNode(object):
         """
         while True:
             in_msg = yield self.probe_event
-            # Closest Node Discovery to be implemented here
-            closest_node_id = self.env.get_random_node()
+            client = in_msg["send_id"]
+            # TODO: Closest Node Discovery to be implemented here
+            estimates = []
+            for node in self.env.nodes:
+                cj = node["obj"].get_vivaldi_position()
+                est_rtt = cj.estimateRTT(client.get_vivaldi_position())
+                estimates.append({"id": node["id"], "rtt": est_rtt})
+            sorted_estimates = sorted(estimates, key=itemgetter('rtt'))
+            print(sorted_estimates)
+            closest_node_id = sorted_estimates[0]["id"]
             client_id = in_msg["send_id"]
             msg_id = in_msg["msg_id"]
             self.env.send_message(self.id, client_id,

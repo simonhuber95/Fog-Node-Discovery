@@ -134,24 +134,24 @@ class VivaldiPosition(object):
         """
         return self._error is not None and self.getCoordinates().isValid()
 
-    def estimateRTT(self, data):
+    def estimateRTT(self, cj):
         """Gives an estimate of the Round-Trip-Time
         Args:
-                data (HeightCoordinates|VivaldiPosition): HeightCoordinates or VivaldiPosition to which the RTT is estimated
+                cj (HeightCoordinates|VivaldiPosition): HeightCoordinates or VivaldiPosition to which the RTT is estimated
         Returns:
                 float: RTT estimate
         """
-        if isinstance(data, HeightCoordinates):
-            return self._coordinates.distance(data)
-        elif isinstance(data, VivaldiPosition):
-            coords = data.getCoordinates()
+        if isinstance(cj, HeightCoordinates):
+            return self._coordinates.distance(cj)
+        elif isinstance(cj, VivaldiPosition):
+            coords = cj.getCoordinates()
             if coords.atOrigin() or self._coordinates.atOrigin():
-                return None
+                return 0
 
             return self._coordinates.distance(coords)
         else:
             raise TypeError(
-                "HeightCoordinates or VivaldiPosition expected, received {}".format(type(data)))
+                "HeightCoordinates or VivaldiPosition expected, received {}".format(type(cj)))
 
     def toFloatArray(self):
         return [self._coordinates.x, self._coordinates.y, self._coordinates.h, self._error]
