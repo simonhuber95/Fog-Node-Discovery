@@ -36,22 +36,49 @@ class FogNode(object):
             # waiting the given latency
             yield self.env.timeout(in_msg["latency"])
             if self.verbose:
-                print("Node {}: Message type {} from client {} at {} from {}: {}".format(
+                print("Node {}: Message type {} from {} at {} from {}: {}".format(
                     self.id, in_msg["msg_type"], in_msg["send_id"], self.env.now, in_msg["timestamp"], in_msg["msg"]))
-            # Message type 2 = Node Request -> Trigger search for closest node via event
-            if(in_msg["msg_type"] == 2):
-                self.probe_event.succeed(in_msg)
-                self.probe_event = self.env.event()
-            elif(in_msg["msg_type"] == 3):
-                # TODO: nur bei messages die rtt abfragen und vivaldiposition updaten die zurückkommen. keine eingehenden!
-                rtt = self.calculate_rtt(in_msg)
-                print(rtt)
-            else:
+
+            if(in_msg["msg_type"] == 1):
                 out_msg = self.env.send_message(
                     self.id, in_msg["send_id"], "Reply from node", msg_id=in_msg["msg_id"])
                 self.out_msg_history.append(out_msg)
 
-    # returns closest node relative to client
+            # Message type 2 = Node Request -> Trigger search for closest node via event
+            elif(in_msg["msg_type"] == 2):
+                self.probe_event.succeed(in_msg)
+                self.probe_event = self.env.event()
+
+            # Message type 3 = Network Probing -> update VivaldiPosition at response or respond at Request
+            elif(in_msg["msg_type"] == 3):
+                msg_id = in_msg["msg_id"]
+                prev_msg = next(
+                    (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
+                # If there already exists a message with this ID it is a response and vivaldiposition is updated
+                if(prev_msg):
+                    sender = self.env.get_participant(in_msg["send_id"])
+                    cj = sender.get_vivaldi_position()
+                    ej = cj.getErrorEstimate()
+                    rtt = self.calculate_rtt(in_msg)
+
+                    try:
+                        self.vivaldiposition.update(rtt, cj, ej)
+                    except ValueError as e:
+                        print(in_msg["send_id"], prev_msg["send_id"])
+                        print(
+                            "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
+
+                # If there is no message with this ID it is a Request and node simply answers
+                else:
+                    out_msg = self.env.send_message(
+                        self.id, in_msg["send_id"], "Probe reply from Node", msg_id=in_msg["msg_id"], msg_type=3)
+                    self.out_msg_history.append(out_msg)
+            # unknown message type
+            else:
+                if self.verbose:
+                    print("Node {} received unknown message type: {}".format(
+                        self.id, in_msg["msg_type"]))
+
     def get_closest_node(self):
         while True:
             in_msg = yield self.probe_event
@@ -65,8 +92,12 @@ class FogNode(object):
     def probe_network(self):
         self.neighbours = self.env.get_neighbours(self)
         while(True):
+            # Search for random node, which is not self
             if random.randrange(100) < 50:
-                probe_node = self.env.get_random_node()
+                while(True):
+                    probe_node = self.env.get_random_node()
+                    if(probe_node != self.id):
+                        break
             else:
                 probe_node = random.choice(self.neighbours)["id"]
             out_msg = self.env.send_message(
@@ -76,6 +107,9 @@ class FogNode(object):
 
     def get_coordinates(self):
         return self.phy_x, self.phy_y
+
+    def get_vivaldi_position(self):
+        return self.vivaldiposition
 
     def calculate_rtt(self, in_msg):
         msg_id = in_msg["msg_id"]

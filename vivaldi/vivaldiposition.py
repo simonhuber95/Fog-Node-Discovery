@@ -55,15 +55,15 @@ class VivaldiPosition(object):
         self._error = float(e)
 
     def update(self, rtt, cj, ej):
-        """[summary]
+        """Calculates the update in node i from the rtt to node j, the virtual coordinates of node j and the estimated error of node j
 
         Args:
-                rtt (number): Round-Trip-Time
-                cj (HeightCoordinates|Float32Array|VivaldiPosition): [description]
-                ej (number): [description]
+                rtt (number): Round-Trip-Time from node i to node j
+                cj (HeightCoordinates|Float32Array|VivaldiPosition): Coordinates of node j
+                ej (number): Estimate error of node j
 
         Returns:
-                [type]: [description]
+                boolean: whether or not the update was succesful
         """
         # Check if cj is an Array
         if (isinstance(cj, collections.Sequence)):
@@ -73,17 +73,21 @@ class VivaldiPosition(object):
         if isinstance(cj, VivaldiPosition):
             return self.update(rtt, cj.getCoordinates(), cj.getErrorEstimate())
 
-        if (not valid(rtt) or not cj.isValid() or not valid(ej)):
-            return False  # throw error maybe
-
+        if not valid(rtt):
+            raise ValueError("Invalid rtt")
+        if not cj.isValid():
+            raise ValueError("Invalid coordinate")
+        if not valid(ej):
+            raise ValueError("Invalid error estimate")
+        
         error = self._error
 
         # Ensure we have valid data in input
         # (clock changes lead to crazy rtt values)
         if (rtt <= 0 or rtt > 5 * 60 * 1000):
-            return False
+            raise ValueError("RTT out of logical bounds")
         if (error + ej == 0):
-            return False
+            raise ValueError("Errors to small")
 
         # Sample weight balances local and remote error. (1)
         w = error / (ej + error)
