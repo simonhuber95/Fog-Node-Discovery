@@ -74,7 +74,6 @@ class FogNode(object):
                     try:
                         self.vivaldiposition.update(rtt, cj, ej)
                     except ValueError as e:
-                        print(in_msg["send_id"], prev_msg["send_id"])
                         print(
                             "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
 
