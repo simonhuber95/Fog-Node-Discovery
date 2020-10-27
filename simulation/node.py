@@ -42,6 +42,7 @@ class FogNode(object):
         """
         while True:
             in_msg = yield self.msg_pipe.get()
+            in_msg.update({"rec_timestamp": self.env.now})
             self.in_msg_history.append(in_msg)
             # waiting the given latency
             yield self.env.timeout(in_msg["latency"])
@@ -96,15 +97,14 @@ class FogNode(object):
         """
         while True:
             in_msg = yield self.probe_event
-            client = in_msg["send_id"]
-            # TODO: Closest Node Discovery to be implemented here
+            client = self.env.get_participant(in_msg["send_id"])
+
             estimates = []
             for node in self.env.nodes:
                 cj = node["obj"].get_vivaldi_position()
                 est_rtt = cj.estimateRTT(client.get_vivaldi_position())
                 estimates.append({"id": node["id"], "rtt": est_rtt})
             sorted_estimates = sorted(estimates, key=itemgetter('rtt'))
-            print(sorted_estimates)
             closest_node_id = sorted_estimates[0]["id"]
             client_id = in_msg["send_id"]
             msg_id = in_msg["msg_id"]
@@ -161,5 +161,5 @@ class FogNode(object):
         msg_id = in_msg["msg_id"]
         out_msg = next(
             (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
-        rtt = in_msg["timestamp"] - out_msg["timestamp"]
+        rtt = in_msg["rec_timestamp"] - out_msg["timestamp"]
         return rtt

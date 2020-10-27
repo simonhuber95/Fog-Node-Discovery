@@ -107,7 +107,7 @@ class MobileClient(object):
                 yield self.env.timeout(in_msg["latency"])
             except simpy.Interrupt:
                 return
-
+            in_msg.update({"rec_timestamp": self.env.now})
             # Append message to history
             self.in_msg_history.append(in_msg)
 
@@ -240,5 +240,5 @@ class MobileClient(object):
         msg_id = in_msg["msg_id"]
         out_msg = next(
             (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
-        rtt = in_msg["timestamp"] - out_msg["timestamp"]
+        rtt = in_msg["rec_timestamp"] - out_msg["timestamp"]
         return rtt
