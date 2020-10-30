@@ -14,7 +14,7 @@ class ReconnectionRules(object):
         Returns:
             boolean: Whether the latency is lower than the threshold
         """
-        latency = self.env.getLatency(send_id, rec_id)
+        latency = self.env.get_latency(send_id, rec_id)
 
         return True if latency < threshold else False
 
@@ -38,7 +38,7 @@ class ReconnectionRules(object):
         if(not out_msg):
             return True
 
-        roundtrip_time = last_in_msg["timestamp"] - out_msg["timestamp"]
+        roundtrip_time = last_in_msg["rec_timestamp"] - out_msg["timestamp"]
         return True if roundtrip_time < threshold else False
 
     def timeout_rule(self, out_history, in_history, threshold=1.5):

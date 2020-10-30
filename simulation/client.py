@@ -3,7 +3,8 @@ import simpy
 import random
 import geopandas
 from geopy import distance as geo_distance
-from reconnection_rules import ReconnectionRules
+from .reconnection_rules import ReconnectionRules
+from vivaldi.vivaldiposition import VivaldiPosition
 
 
 class MobileClient(object):
@@ -34,8 +35,6 @@ class MobileClient(object):
         self.phy_y = float(plan.find('activity').attrib["y"])
         # Zip all activities and legs into pairs (except for initial activity used for init coordinates)
         self.pairs = zip(plan.findall('activity')[1:], plan.findall('leg'))
-        self.virt_x = 0
-        self.virt_y = 0
         if self.verbose:
             print("Client {}: active, current location x: {}, y: {}".format(
                 self.id, self.phy_x, self.phy_y))
@@ -45,6 +44,9 @@ class MobileClient(object):
         self.move_process = self.env.process(self.move())
         self.monitor_process = self.env.process(self.monitor())
         self.stop_event = env.event()
+
+        # Init the VivaldiPosition
+        self.vivaldiposition = VivaldiPosition.create()
 
     def move(self):
         if self.verbose:
@@ -83,13 +85,13 @@ class MobileClient(object):
             if(not self.closest_node_id or not self.connection_valid()):
                 if self.verbose:
                     print("Client {}: Probing network".format(self.id))
-                random_node = self.env.getRandomNode()
-                out_msg = self.env.sendMessage(self.id, random_node,
-                                               "Request Closest node", msg_type=2)
+                random_node = self.env.get_random_node()
+                out_msg = self.env.send_message(self.id, random_node,
+                                                "Request Closest node", msg_type=2)
                 self.out_msg_history.append(out_msg)
             # If closest node is registered, send messages to node
             else:
-                out_msg = self.env.sendMessage(
+                out_msg = self.env.send_message(
                     self.id, self.closest_node_id, "Client {} sends a task".format(self.id))
                 self.out_msg_history.append(out_msg)
             try:
@@ -100,27 +102,44 @@ class MobileClient(object):
     def in_connect(self):
         while(True):
             try:
-                msg = yield self.msg_pipe.get()
+                in_msg = yield self.msg_pipe.get()
                 # Waiting the given latency
-                yield self.env.timeout(msg["latency"])
+                yield self.env.timeout(in_msg["latency"])
             except simpy.Interrupt:
                 return
-
+            in_msg.update({"rec_timestamp": self.env.now})
             # Append message to history
-            self.in_msg_history.append(msg)
+            self.in_msg_history.append(in_msg)
+
+            # Updating the VivaldiPosition for every incoming message which is a response in the follwoing
+            msg_id = in_msg["msg_id"]
+            # Checking if incoming message is a response on which a rtt can be calculated
+            prev_msg = next(
+                (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
+            # If there already exists a message with this ID it is a response and vivaldiposition is updated
+            if(prev_msg):
+                sender = self.env.get_participant(in_msg["send_id"])
+                cj = sender.get_vivaldi_position()
+                ej = cj.getErrorEstimate()
+                rtt = self.calculate_rtt(in_msg)
+                try:
+                    self.vivaldiposition.update(rtt, cj, ej)
+                except ValueError as e:
+                    print(
+                        "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
             # Extracting message Type
-            msg_type = msg["msg_type"]
+            msg_type = in_msg["msg_type"]
             # Standard task message
             if(msg_type == 1):
                 if self.verbose:
                     print("Client {}: Message from Node {} at {} from {}: {}".format(
-                        self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
+                        self.id, in_msg["send_id"], round(self.env.now, 2), round(in_msg["timestamp"], 2), in_msg["msg"]))
             # Closest node message
             elif(msg_type == 2):
                 if self.verbose:
                     print("Client {}: Message from Node {} at {} from {}: Closest node is {}".format(
-                        self.id, msg["send_id"], round(self.env.now, 2), round(msg["timestamp"], 2), msg["msg"]))
-                self.closest_node_id = msg["msg"]
+                        self.id, in_msg["send_id"], round(self.env.now, 2), round(in_msg["timestamp"], 2), in_msg["msg"]))
+                self.closest_node_id = in_msg["msg"]
 
     def monitor(self):
         """Monitor process for the client.
@@ -200,3 +219,26 @@ class MobileClient(object):
         if(self.verbose):
             print("Client {} stopped: {}".format(self.id, cause))
         # self.move_process.fail(exception=Exception)
+
+    def get_vivaldi_position(self):
+        """Returns the virtual coordinate
+
+        Returns:
+            VivaldiPosition: the VivaldiPosition of the node
+        """
+        return self.vivaldiposition
+
+    def calculate_rtt(self, in_msg):
+        """Calculates the round-trip-time (rtt) of the incoming message by comparing timestamps with the out message
+
+        Args:
+            in_msg (dict): Incoming message
+
+        Returns:
+            float: roundtrip time of the message
+        """
+        msg_id = in_msg["msg_id"]
+        out_msg = next(
+            (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
+        rtt = in_msg["rec_timestamp"] - out_msg["timestamp"]
+        return rtt
