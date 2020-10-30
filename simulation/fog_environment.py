@@ -88,7 +88,7 @@ class FogEnvironment(Environment):
         distance = math.sqrt((rec_x - send_x)**2 + (rec_y - send_y)**2)
         return distance
 
-    def get_boundaries(self, x_trans, y_trans, method="center"):
+    def generate_boundaries(self, x_trans, y_trans, method="center"):
         """Calculates the boundaries of the simulation based on the map boundaries and the size of the area
 
         Args:
@@ -108,13 +108,15 @@ class FogEnvironment(Environment):
                            self.config["map"]["x_max"])/2 - x_trans/2)
             y_lower = int((self.config["map"]["y_min"] +
                            self.config["map"]["y_max"])/2 - y_trans/2)
-        
+
         else:
-            raise RuntimeError("Unknown area selection method. Expected \'random\' or \'center\', found {}".format(method))
+            raise RuntimeError(
+                "Unknown area selection method. Expected \'random\' or \'center\', found {}".format(method))
+
         x_upper = x_lower + x_trans
         y_upper = y_lower + y_trans
 
-        return((x_lower, x_upper, y_lower, y_upper))
+        return ((x_lower, x_upper, y_lower, y_upper))
 
     def get_neighbours(self, req_node, n=4):
         """Calculates the nearest physical neighbours for a given node. Is used for the Vivaldi protocol

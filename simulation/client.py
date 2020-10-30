@@ -242,3 +242,12 @@ class MobileClient(object):
             (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
         rtt = in_msg["rec_timestamp"] - out_msg["timestamp"]
         return rtt
+
+    def get_coordinates(self):
+        """Returns the physical coordinates of the client
+
+        Returns:
+            float: x coordinate of the node in GK4/EPSG:31468
+            float: y coordinate of the node in GK4/EPSG:31468
+        """
+        return self.phy_x, self.phy_y
