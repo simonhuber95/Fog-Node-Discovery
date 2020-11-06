@@ -30,6 +30,8 @@ class MobileClient(object):
         self.msg_pipe = simpy.FilterStore(env)
         self.in_msg_history = []
         self.out_msg_history = []
+        # Gossip of all nodes
+        self.gossip = [{"id": self.id, "position": self.vivaldiposition, "timestamp": env.now}]
         # Set coordinates to first activity in plan
         self.phy_x = float(plan.find('activity').attrib["x"])
         self.phy_y = float(plan.find('activity').attrib["y"])
@@ -85,14 +87,15 @@ class MobileClient(object):
             if(not self.closest_node_id or not self.connection_valid()):
                 if self.verbose:
                     print("Client {}: Probing network".format(self.id))
+                # TODO rather take closest Node from gossip
                 random_node = self.env.get_random_node()
                 out_msg = self.env.send_message(self.id, random_node,
-                                                "Request Closest node", msg_type=2)
+                                                "Request Closest node", gossip = self.gossip, msg_type=2)
                 self.out_msg_history.append(out_msg)
             # If closest node is registered, send messages to node
             else:
                 out_msg = self.env.send_message(
-                    self.id, self.closest_node_id, "Client {} sends a task".format(self.id))
+                    self.id, self.closest_node_id, "Client {} sends a task".format(self.id), gossip = self.gossip)
                 self.out_msg_history.append(out_msg)
             try:
                 yield self.env.timeout(random.randint(1, 5))
@@ -127,6 +130,7 @@ class MobileClient(object):
                 except ValueError as e:
                     print(
                         "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
+            # TODO Update own news in gossip
             # Extracting message Type
             msg_type = in_msg["msg_type"]
             # Standard task message
@@ -251,3 +255,11 @@ class MobileClient(object):
             float: y coordinate of the node in GK4/EPSG:31468
         """
         return self.phy_x, self.phy_y
+    
+    def update_gossip(self, in_msg):
+        in_gossip = in_msg["gossip"]
+        for news in in_gossip:
+            # Ignore own news
+            if news["id"] == self.id:
+                continue
+            

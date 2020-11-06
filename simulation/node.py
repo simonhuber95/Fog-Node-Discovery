@@ -18,6 +18,7 @@ class FogNode(object):
         self.connect_event = env.event()
         self.in_msg_history = []
         self.out_msg_history = []
+        self.gossip = {"id": self.id, "position": self.vivaldiposition, "timestamp": env.now} 
         self.verbose = verbose
         self.vivaldiposition = VivaldiPosition.create()
 
@@ -52,7 +53,7 @@ class FogNode(object):
 
             if(in_msg["msg_type"] == 1):
                 out_msg = self.env.send_message(
-                    self.id, in_msg["send_id"], "Reply from node", msg_id=in_msg["msg_id"])
+                    self.id, in_msg["send_id"], "Reply from node", gossip = self.gossip, msg_id=in_msg["msg_id"])
                 self.out_msg_history.append(out_msg)
 
             # Message type 2 = Node Request -> Trigger search for closest node via event
@@ -81,7 +82,7 @@ class FogNode(object):
                 # If there is no message with this ID it is a Request and node simply answers
                 else:
                     out_msg = self.env.send_message(
-                        self.id, in_msg["send_id"], "Probe reply from Node", msg_id=in_msg["msg_id"], msg_type=3)
+                        self.id, in_msg["send_id"], "Probe reply from Node", gossip = self.gossip, msg_id=in_msg["msg_id"], msg_type=3)
                     self.out_msg_history.append(out_msg)
             # unknown message type
             else:
@@ -109,7 +110,7 @@ class FogNode(object):
             client_id = in_msg["send_id"]
             msg_id = in_msg["msg_id"]
             self.env.send_message(self.id, client_id,
-                                  closest_node_id, msg_type=2, msg_id=msg_id)
+                                  closest_node_id, gossip = self.gossip, msg_type=2, msg_id=msg_id)
 
     def probe_network(self):
         """Probing process to continually update the virtual position
@@ -128,7 +129,7 @@ class FogNode(object):
             else:
                 probe_node = random.choice(self.neighbours)["id"]
             out_msg = self.env.send_message(
-                self.id, probe_node, "Probing network", msg_type=3)
+                self.id, probe_node, "Probing network", gossip = self.gossip, msg_type=3)
             self.out_msg_history.append(out_msg)
             yield self.env.timeout(random.randint(0, 2))
 
