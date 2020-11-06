@@ -53,6 +53,7 @@ class FogNode(object):
                     self.id, in_msg["msg_type"], in_msg["send_id"], self.env.now, in_msg["timestamp"], in_msg["msg"]))
             # Update gossip
             self.update_gossip(in_msg)
+            # Message type 1 = Regular Message from client, just reply
             if(in_msg["msg_type"] == 1):
                 out_msg = self.env.send_message(
                     self.id, in_msg["send_id"], "Reply from node", gossip=self.gossip, msg_id=in_msg["msg_id"])
@@ -101,11 +102,9 @@ class FogNode(object):
         while True:
             in_msg = yield self.probe_event
             client = self.env.get_participant(in_msg["send_id"])
-
             estimates = []
-
             for node in filter(lambda x: x['type'] == type(self).__name__, self.gossip):
-                cj = node["position"].get_vivaldi_position()
+                cj = node["position"]
                 est_rtt = cj.estimateRTT(client.get_vivaldi_position())
                 estimates.append({"id": node["id"], "rtt": est_rtt})
             sorted_estimates = sorted(estimates, key=itemgetter('rtt'))
@@ -176,18 +175,18 @@ class FogNode(object):
         """
         in_gossip = in_msg["gossip"]
         for news in in_gossip:
-            # If the node is not in own gossip add it
+            # If the news is not in own gossip add it
             if not any(entry.get("id") == news["id"] for entry in self.gossip):
                 self.gossip.append(news)
-            # Update own gossip if the news is newer than own news
+            # Otherwise update existing news
             else:
-                # own_news = (entry.get("id") == news["id"] for entry in self.gossip)
                 own_news = next(
                     (entry for entry in self.gossip if entry["id"] == news["id"]), None)
-               # keep own gossip up to date
+                # keep own gossip up to date
                 if news["id"] == self.id:
                     own_news.update(
                         {"position": self.vivaldiposition, "timestamp": self.env.now})
+                # Update news if it is older than incoming news
                 elif own_news["timestamp"] < news["timestamp"]:
                     own_news.update(
                         {"position": self.vivaldiposition, "timestamp": self.env.now})
