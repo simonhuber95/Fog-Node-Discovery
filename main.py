@@ -18,6 +18,8 @@ from shapely.geometry import Point, Polygon
 import yaml
 from pathlib import Path
 
+from simulation.visualize import visualize_movements, visualize_vivaldi
+
 # Set base path of the project
 base_path = Path().absolute()
 
@@ -48,7 +50,7 @@ nodes_gdf = gpd.read_file(nodes_path)
 
 while True:
     # Get boundaries of simulation
-    (x_lower, x_upper, y_lower, y_upper) = env.get_boundaries(
+    (x_lower, x_upper, y_lower, y_upper) = env.generate_boundaries(
         config["simulation"]["area"], config["simulation"]["area"], method=config["simulation"]["area_selection"])
 
     print("Simulation area x: {} - {}, y: {} - {}".format(x_lower,
@@ -86,11 +88,13 @@ for client in client_data.getroot().iterfind('person'):
                               verbose=config["simulation"]["verbose"])
         env.clients.append({"id": client_id, "obj": client})
         # Break out of loop if enough clients got generated
-        if(not max_clients and len(env.clients) == max_clients):
+        if(max_clients and len(env.clients) == max_clients):
             break
 
 # visualize.visualize_movements(env, map_path)
 
+viz_process1 = env.process(visualize_vivaldi(env))
+viz_process2 = env.process(visualize_movements(env))
 
 # add dummy
 # dummy = Dummy(env)

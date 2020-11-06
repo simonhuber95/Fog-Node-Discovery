@@ -130,7 +130,7 @@ class FogNode(object):
             out_msg = self.env.send_message(
                 self.id, probe_node, "Probing network", msg_type=3)
             self.out_msg_history.append(out_msg)
-            yield self.env.timeout(random.randint(1, 5))
+            yield self.env.timeout(random.randint(0, 2))
 
     def get_coordinates(self):
         """Returns the physical coordinates of the node
