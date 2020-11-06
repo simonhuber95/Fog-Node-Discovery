@@ -30,8 +30,6 @@ class MobileClient(object):
         self.msg_pipe = simpy.FilterStore(env)
         self.in_msg_history = []
         self.out_msg_history = []
-        # Gossip of all nodes
-        self.gossip = [{"id": self.id, "position": self.vivaldiposition, "timestamp": env.now}]
         # Set coordinates to first activity in plan
         self.phy_x = float(plan.find('activity').attrib["x"])
         self.phy_y = float(plan.find('activity').attrib["y"])
@@ -49,6 +47,9 @@ class MobileClient(object):
 
         # Init the VivaldiPosition
         self.vivaldiposition = VivaldiPosition.create()
+        # Gossip of all nodes
+        self.gossip = [
+            {"id": self.id, "position": self.vivaldiposition, "timestamp": env.now, "type": type(self).__name__}]
 
     def move(self):
         if self.verbose:
@@ -90,12 +91,12 @@ class MobileClient(object):
                 # TODO rather take closest Node from gossip
                 random_node = self.env.get_random_node()
                 out_msg = self.env.send_message(self.id, random_node,
-                                                "Request Closest node", gossip = self.gossip, msg_type=2)
+                                                "Request Closest node", gossip=self.gossip, msg_type=2)
                 self.out_msg_history.append(out_msg)
             # If closest node is registered, send messages to node
             else:
                 out_msg = self.env.send_message(
-                    self.id, self.closest_node_id, "Client {} sends a task".format(self.id), gossip = self.gossip)
+                    self.id, self.closest_node_id, "Client {} sends a task".format(self.id), gossip=self.gossip)
                 self.out_msg_history.append(out_msg)
             try:
                 yield self.env.timeout(random.randint(1, 5))
@@ -113,8 +114,10 @@ class MobileClient(object):
             in_msg.update({"rec_timestamp": self.env.now})
             # Append message to history
             self.in_msg_history.append(in_msg)
+            # Update gossip
+            self.update_gossip(in_msg)
 
-            # Updating the VivaldiPosition for every incoming message which is a response in the follwoing
+            # Updating the VivaldiPosition for every incoming message which is a response in the following
             msg_id = in_msg["msg_id"]
             # Checking if incoming message is a response on which a rtt can be calculated
             prev_msg = next(
@@ -130,7 +133,6 @@ class MobileClient(object):
                 except ValueError as e:
                     print(
                         "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
-            # TODO Update own news in gossip
             # Extracting message Type
             msg_type = in_msg["msg_type"]
             # Standard task message
@@ -255,11 +257,27 @@ class MobileClient(object):
             float: y coordinate of the node in GK4/EPSG:31468
         """
         return self.phy_x, self.phy_y
-    
+
     def update_gossip(self, in_msg):
+        """Updates the own gossip with the gossip from the in message
+
+        Args:
+            in_msg (list[dict]): An incoming message from another participant
+        """
         in_gossip = in_msg["gossip"]
         for news in in_gossip:
-            # Ignore own news
-            if news["id"] == self.id:
-                continue
-            
+            # If the node is not in own gossip add it
+            if not any(entry.get("id") == news["id"] for entry in self.gossip):
+                self.gossip.append(news)
+            # Update own gossip if the news is newer than own news
+            else:
+                #own_news = (entry.get("id") == news["id"] for entry in self.gossip)
+                own_news = next(
+                    (entry for entry in self.gossip if entry["id"] == news["id"]), None)
+                # keep own gossip up to date
+                if news["id"] == self.id:
+                    own_news.update(
+                        {"position": self.vivaldiposition, "timestamp": self.env.now})
+                elif own_news["timestamp"] < news["timestamp"]:
+                    own_news.update(
+                        {"position": self.vivaldiposition, "timestamp": self.env.now})

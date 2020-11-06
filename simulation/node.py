@@ -18,9 +18,10 @@ class FogNode(object):
         self.connect_event = env.event()
         self.in_msg_history = []
         self.out_msg_history = []
-        self.gossip = {"id": self.id, "position": self.vivaldiposition, "timestamp": env.now} 
         self.verbose = verbose
         self.vivaldiposition = VivaldiPosition.create()
+        self.gossip = [{"id": self.id, "position": self.vivaldiposition,
+                        "timestamp": env.now, "type": type(self).__name__}]
 
         # Start the run process everytime an instance is created.
 
@@ -50,10 +51,11 @@ class FogNode(object):
             if self.verbose:
                 print("Node {}: Message type {} from {} at {} from {}: {}".format(
                     self.id, in_msg["msg_type"], in_msg["send_id"], self.env.now, in_msg["timestamp"], in_msg["msg"]))
-
+            # Update gossip
+            self.update_gossip(in_msg)
             if(in_msg["msg_type"] == 1):
                 out_msg = self.env.send_message(
-                    self.id, in_msg["send_id"], "Reply from node", gossip = self.gossip, msg_id=in_msg["msg_id"])
+                    self.id, in_msg["send_id"], "Reply from node", gossip=self.gossip, msg_id=in_msg["msg_id"])
                 self.out_msg_history.append(out_msg)
 
             # Message type 2 = Node Request -> Trigger search for closest node via event
@@ -82,7 +84,7 @@ class FogNode(object):
                 # If there is no message with this ID it is a Request and node simply answers
                 else:
                     out_msg = self.env.send_message(
-                        self.id, in_msg["send_id"], "Probe reply from Node", gossip = self.gossip, msg_id=in_msg["msg_id"], msg_type=3)
+                        self.id, in_msg["send_id"], "Probe reply from Node", gossip=self.gossip, msg_id=in_msg["msg_id"], msg_type=3)
                     self.out_msg_history.append(out_msg)
             # unknown message type
             else:
@@ -101,8 +103,9 @@ class FogNode(object):
             client = self.env.get_participant(in_msg["send_id"])
 
             estimates = []
-            for node in self.env.nodes:
-                cj = node["obj"].get_vivaldi_position()
+
+            for node in filter(lambda x: x['type'] == type(self).__name__, self.gossip):
+                cj = node["position"].get_vivaldi_position()
                 est_rtt = cj.estimateRTT(client.get_vivaldi_position())
                 estimates.append({"id": node["id"], "rtt": est_rtt})
             sorted_estimates = sorted(estimates, key=itemgetter('rtt'))
@@ -110,7 +113,7 @@ class FogNode(object):
             client_id = in_msg["send_id"]
             msg_id = in_msg["msg_id"]
             self.env.send_message(self.id, client_id,
-                                  closest_node_id, gossip = self.gossip, msg_type=2, msg_id=msg_id)
+                                  closest_node_id, gossip=self.gossip, msg_type=2, msg_id=msg_id)
 
     def probe_network(self):
         """Probing process to continually update the virtual position
@@ -129,7 +132,7 @@ class FogNode(object):
             else:
                 probe_node = random.choice(self.neighbours)["id"]
             out_msg = self.env.send_message(
-                self.id, probe_node, "Probing network", gossip = self.gossip, msg_type=3)
+                self.id, probe_node, "Probing network", gossip=self.gossip, msg_type=3)
             self.out_msg_history.append(out_msg)
             yield self.env.timeout(random.randint(0, 2))
 
@@ -164,3 +167,27 @@ class FogNode(object):
             (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
         rtt = in_msg["rec_timestamp"] - out_msg["timestamp"]
         return rtt
+
+    def update_gossip(self, in_msg):
+        """Updates the own gossip with the gossip from the in message
+
+        Args:
+            in_msg (list[dict]): An incoming message from another participant
+        """
+        in_gossip = in_msg["gossip"]
+        for news in in_gossip:
+            # If the node is not in own gossip add it
+            if not any(entry.get("id") == news["id"] for entry in self.gossip):
+                self.gossip.append(news)
+            # Update own gossip if the news is newer than own news
+            else:
+                # own_news = (entry.get("id") == news["id"] for entry in self.gossip)
+                own_news = next(
+                    (entry for entry in self.gossip if entry["id"] == news["id"]), None)
+               # keep own gossip up to date
+                if news["id"] == self.id:
+                    own_news.update(
+                        {"position": self.vivaldiposition, "timestamp": self.env.now})
+                elif own_news["timestamp"] < news["timestamp"]:
+                    own_news.update(
+                        {"position": self.vivaldiposition, "timestamp": self.env.now})
