@@ -1,11 +1,11 @@
 simulation:
-  runtime: 30 # in seconds
+  runtime: 300 # in seconds
   area: 1000 # x and y translation in meter of random selected area
   area_selection: center # random or center
   verbose: False
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
-  max_clients: 1
+  max_clients: 5
   latency_threshold: 0.9
   roundtrip_threshold: 1.2
   timeout_threshold: 2

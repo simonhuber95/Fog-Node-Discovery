@@ -9,12 +9,7 @@ from simulation.fog_environment import FogEnvironment
 import simulation.visualize
 import xml.etree.ElementTree as et
 import uuid
-import random
-import math
 import geopandas as gpd
-import pandas as pd
-import matplotlib.pyplot as plt
-from shapely.geometry import Point, Polygon
 import yaml
 from pathlib import Path
 
