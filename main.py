@@ -6,7 +6,6 @@ from simulation.node import FogNode
 from simulation.metrics import Metrics
 from simulation.dummy import Dummy
 from simulation.fog_environment import FogEnvironment
-import simulation.visualize
 import xml.etree.ElementTree as et
 import uuid
 import geopandas as gpd
