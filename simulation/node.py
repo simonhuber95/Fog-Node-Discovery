@@ -93,13 +93,10 @@ class FogNode(object):
                     print("Node {} received unknown message type: {}".format(
                         self.id, in_msg["msg_type"]))
 
-    def get_closest_node(self, discovery_protocol):
+    def get_closest_node(self):
         """Retrieves the closest node from the network for the requesting client. Decision is based on the given discovery protocol:
         baseline: the optimal discovery as a baseline 
         vivaldi: discovery via the vivaldi virtual coordinates
-        
-        Args:
-            discovery_protocol (string): discovery protocol to be used to find the closest node. Accepts "vivaldi", "baseline" ... to be continued
 
         Yields:
             simpy.Event: waits for the probe event to be triggered, then searches for the closest node to the client
@@ -110,11 +107,11 @@ class FogNode(object):
             
             # Calculating the closest node based on the omniscient environment. 
             # Should not be used for realisitic measurements but as a baseline to compare other protocols to
-            if (discovery_protocol == "baseline"):
+            if (self.discovery_protocol == "baseline"):
                 closest_node_id = self.env.get_closest_node(client.id)
             
             # Calculating the closest node based on the vivaldi virtual coordinates
-            elif(discovery_protocol == "vivaldi"):
+            elif(self.discovery_protocol == "vivaldi"):
                 estimates = []
                 for node in filter(lambda x: x['type'] == type(self).__name__, self.gossip):
                     cj = node["position"]
