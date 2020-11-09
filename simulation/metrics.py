@@ -13,7 +13,8 @@ class Metrics(object):
         count = self.collect_message_count()
         lost = self.collect_lost_messages()
         active = self.collect_active_time()
-        data_frames = [rec, lat, count, lost, active]
+        opt_mse = self.collect_optimal_error()
+        data_frames = [rec, lat, count, lost, active, opt_mse]
         df_merged = reduce(lambda left, right: pd.merge(left, right, on=["client_id"],
                                                         how='outer'), data_frames)
         return df_merged
@@ -51,7 +52,7 @@ class Metrics(object):
             history = [*client["obj"].in_msg_history,
                        *client["obj"].out_msg_history]
 
-            data.append({"client_id": client["obj"].id, "total_msgs": len(history),  "out_msgs": len(client["obj"].out_msg_history), 
+            data.append({"client_id": client["obj"].id, "total_msgs": len(history),  "out_msgs": len(client["obj"].out_msg_history),
                          "in_msgs": len(client["obj"].in_msg_history)})
         df = pd.DataFrame(data=data, columns=[
                           "client_id", "total_msgs", "out_msgs", "in_msgs"])
@@ -78,3 +79,22 @@ class Metrics(object):
             data.append(
                 {"client_id": client["obj"].id, "active_time": active_time})
         return pd.DataFrame(data=data, columns=["client_id", "active_time"])
+
+    def collect_optimal_error(self):
+        data = []
+        for client in self.env.clients:
+            # Actual rtt
+            y_true = []
+            # Optimal rtt
+            y_opt = []
+            for in_msg in client["obj"].in_msg_history:
+                if(in_msg.prev_msg_id):
+                    # Retrieve request for the incoming response
+                    out_msg = next(
+                        (message for message in client["obj"].out_msg_history if message.id == in_msg.prev_msg_id), None)
+                    y_true.append(out_msg.latency + in_msg.latency)
+                    y_opt.append(out_msg.opt_latency - in_msg.opt_latency)
+            mse = np.square(np.subtract(y_true, y_opt)).mean()
+            data.append(
+                {"client_id": client["obj"].id, "rtt_mse": mse})
+        return pd.DataFrame(data=data, columns=["client_id", "rtt_mse"])
