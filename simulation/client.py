@@ -107,8 +107,6 @@ class MobileClient(object):
         while(True):
             try:
                 in_msg = yield self.msg_pipe.get()
-                # Waiting the given latency
-                yield self.env.timeout(in_msg.latency)
             except simpy.Interrupt:
                 return
             # Save timestamp of reception in message object

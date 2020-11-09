@@ -85,10 +85,9 @@ for client in client_data.getroot().iterfind('person'):
         if(max_clients and len(env.clients) == max_clients):
             break
 
-# visualize.visualize_movements(env, map_path)
 
 # viz_process1 = env.process(visualize_vivaldi(env))
-# vz_process2 = env.process(visualize_movements(env))
+vz_process2 = env.process(visualize_movements(env))
 
 # add dummy
 # dummy = Dummy(env)

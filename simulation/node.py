@@ -3,6 +3,7 @@ from simpy import Resource
 import random
 from operator import itemgetter
 from vivaldi.vivaldiposition import VivaldiPosition
+import math
 
 
 class FogNode(object):
@@ -45,8 +46,7 @@ class FogNode(object):
         while True:
             in_msg = yield self.msg_pipe.get()
             self.in_msg_history.append(in_msg)
-            # waiting the given latency
-            yield self.env.timeout(in_msg.latency)
+
             if self.verbose:
                 print("Node {}: Message type {} from {} at {} from {}: {}".format(
                     self.id, in_msg.msg_type, in_msg.send_id, self.env.now, in_msg.timestamp, in_msg.body))
@@ -147,7 +147,11 @@ class FogNode(object):
             out_msg = self.env.send_message(
                 self.id, probe_node, "Probing network", gossip=self.gossip, msg_type=3)
             self.out_msg_history.append(out_msg)
-            yield self.env.timeout(random.randint(0, 2))
+            # unnecessary complex timeout for the probing process
+            # idea is the longer the newtork is established the less probes are necessary
+            # Randomness is to avoid all nodes to probe at the exact same moment
+            timeout = math.log(self.env.now + 1) if math.log(self.env.now + 1) < 2 else 2
+            yield self.env.timeout(timeout + random.random())
 
     def get_coordinates(self):
         """Returns the physical coordinates of the node

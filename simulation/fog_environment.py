@@ -49,12 +49,17 @@ class FogEnvironment(Environment):
         # message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id,
         #            "timestamp": self.now, "msg": msg, "msg_type": msg_type, "latency": latency, "gossip": gossip}
         # Send message to receiver
-        self.get_participant(rec_id).msg_pipe.put(message)
-        # Put message in gloabal history
+        delivery_process = self.process(self.message_delivery(message))
+        # self.get_participant(rec_id).msg_pipe.put(message)
+        # # Put message in gloabal history
         self.messages.append(message)
-        # Return messsage to sender to put it into the history
+        # # Return messsage to sender to put it into the history
         return message
 
+    def message_delivery(self, message):
+        yield self.timeout(message.latency)
+        self.get_participant(message.rec_id).msg_pipe.put(message)
+        
     def get_latency(self, send_id, rec_id):
         """
         Parameter send_id as string: ID of sender

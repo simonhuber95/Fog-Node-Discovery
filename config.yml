@@ -1,12 +1,12 @@
 simulation:
-  runtime: 3600 # in seconds
-  area: 3000 # x and y translation in meter of random selected area
+  runtime: 600 # in seconds
+  area: 1000 # x and y translation in meter of random selected area
   area_selection: center # random or center
   verbose: False
   discovery_protocol: vivaldi # baseline, vivaldi
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
-  max_clients: 5
+  max_clients: 50
   latency_threshold: 0.9
   roundtrip_threshold: 1.2
   timeout_threshold: 2
