@@ -6,15 +6,9 @@ from simulation.node import FogNode
 from simulation.metrics import Metrics
 from simulation.dummy import Dummy
 from simulation.fog_environment import FogEnvironment
-import simulation.visualize
 import xml.etree.ElementTree as et
 import uuid
-import random
-import math
 import geopandas as gpd
-import pandas as pd
-import matplotlib.pyplot as plt
-from shapely.geometry import Point, Polygon
 import yaml
 from pathlib import Path
 
@@ -93,8 +87,8 @@ for client in client_data.getroot().iterfind('person'):
 
 # visualize.visualize_movements(env, map_path)
 
-viz_process1 = env.process(visualize_vivaldi(env))
-viz_process2 = env.process(visualize_movements(env))
+# viz_process1 = env.process(visualize_vivaldi(env))
+# vz_process2 = env.process(visualize_movements(env))
 
 # add dummy
 # dummy = Dummy(env)
