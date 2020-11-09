@@ -12,6 +12,7 @@ class FogEnvironment(Environment):
         self.clients = []
         self.nodes = []
         self.boundaries = tuple()
+        self.messages = []
 
     def get_participant(self, id):
         """
@@ -48,6 +49,8 @@ class FogEnvironment(Environment):
                    "timestamp": self.now, "msg": msg, "msg_type": msg_type, "latency": latency, "gossip": gossip}
         # Send message to receiver
         self.get_participant(rec_id).msg_pipe.put(message)
+        # Put message in gloabal history
+        self.messages.append(message)
         # Return messsage to sender to put it into the history
         return message
 
@@ -89,6 +92,9 @@ class FogEnvironment(Environment):
         distance = math.sqrt((rec_x - send_x)**2 + (rec_y - send_y)**2)
         return distance
 
+    def get_message(self, msg_id):
+        return next((message for message in self.messages if message.id == msg_id), None)
+        
     def generate_boundaries(self, x_trans, y_trans, method="center"):
         """Calculates the boundaries of the simulation based on the map boundaries and the size of the area
 
