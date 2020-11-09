@@ -141,3 +141,13 @@ class FogEnvironment(Environment):
         # Sort list by distance ascending
         sorted_neighbours = sorted(neighbours, key=itemgetter('distance'))
         return sorted_neighbours[:4]
+    
+    def get_closest_node(self, client_id):
+        latencies = []
+        for node in self.nodes:
+            lat = self.get_latency(client_id, node["obj"].id)
+            latencies.append({"id": node["id"], "lat": lat})
+        sorted_lat = sorted(latencies, key=itemgetter('lat'))
+        closest_node_id = sorted_lat[0]["id"]
+        
+        return closest_node_id

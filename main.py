@@ -60,7 +60,7 @@ print("Init Fog Nodes")
 for index, node_entry in filtered_nodes_gdf.iterrows():
     node_id = uuid.uuid4()
     node = FogNode(env, id=node_id,
-                   discovery_protocol={},
+                   discovery_protocol=config["simulation"]["discovery_protocol"],
                    slots=node_entry["Antennas"],
                    phy_x=node_entry["geometry"].x,
                    phy_y=node_entry["geometry"].y,

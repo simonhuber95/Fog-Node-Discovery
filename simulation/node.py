@@ -94,7 +94,9 @@ class FogNode(object):
                         self.id, in_msg["msg_type"]))
 
     def get_closest_node(self):
-        """Retrieves the closest node from the network for the requesting client
+        """Retrieves the closest node from the network for the requesting client. Decision is based on the given discovery protocol:
+        baseline: the optimal discovery as a baseline 
+        vivaldi: discovery via the vivaldi virtual coordinates
 
         Yields:
             simpy.Event: waits for the probe event to be triggered, then searches for the closest node to the client
@@ -102,13 +104,23 @@ class FogNode(object):
         while True:
             in_msg = yield self.probe_event
             client = self.env.get_participant(in_msg["send_id"])
-            estimates = []
-            for node in filter(lambda x: x['type'] == type(self).__name__, self.gossip):
-                cj = node["position"]
-                est_rtt = cj.estimateRTT(client.get_vivaldi_position())
-                estimates.append({"id": node["id"], "rtt": est_rtt})
-            sorted_estimates = sorted(estimates, key=itemgetter('rtt'))
-            closest_node_id = sorted_estimates[0]["id"]
+            
+            # Calculating the closest node based on the omniscient environment. 
+            # Should not be used for realisitic measurements but as a baseline to compare other protocols to
+            if (self.discovery_protocol == "baseline"):
+                closest_node_id = self.env.get_closest_node(client.id)
+            
+            # Calculating the closest node based on the vivaldi virtual coordinates
+            elif(self.discovery_protocol == "vivaldi"):
+                estimates = []
+                for node in filter(lambda x: x['type'] == type(self).__name__, self.gossip):
+                    cj = node["position"]
+                    est_rtt = cj.estimateRTT(client.get_vivaldi_position())
+                    estimates.append({"id": node["id"], "rtt": est_rtt})
+                sorted_estimates = sorted(estimates, key=itemgetter('rtt'))
+                closest_node_id = sorted_estimates[0]["id"]
+                
+            # send message containing the closest node
             client_id = in_msg["send_id"]
             msg_id = in_msg["msg_id"]
             self.env.send_message(self.id, client_id,
