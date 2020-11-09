@@ -3,6 +3,7 @@ simulation:
   area: 1000 # x and y translation in meter of random selected area
   area_selection: center # random or center
   verbose: False
+  discovery_protocol: default # baseline, vivaldi
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
   max_clients: 5
@@ -12,7 +13,6 @@ clients:
 nodes:
   path: data/cell_towers/cell_towers.shp
   min_nodes: 1
-  discovery_protocol: default
 map:
   city: data/berlin-latest-free/gis_osm_places_a_free_1.shp
   roads: data/berlin-latest-free/gis_osm_roads_free_1.shp
