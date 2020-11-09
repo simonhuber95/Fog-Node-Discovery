@@ -99,7 +99,7 @@ class MobileClient(object):
                     self.id, self.closest_node_id, "Client {} sends a task".format(self.id), gossip=self.gossip)
                 self.out_msg_history.append(out_msg)
             try:
-                yield self.env.timeout(random.randint(1, 5))
+                yield self.env.timeout(random.randint(1, 3))
             except simpy.Interrupt:
                 return
 
@@ -108,23 +108,21 @@ class MobileClient(object):
             try:
                 in_msg = yield self.msg_pipe.get()
                 # Waiting the given latency
-                yield self.env.timeout(in_msg["latency"])
+                yield self.env.timeout(in_msg.latency)
             except simpy.Interrupt:
                 return
-            in_msg.update({"rec_timestamp": self.env.now})
+            # Save timestamp of reception in message object
+            in_msg.rec_timestamp = self.env.now
             # Append message to history
             self.in_msg_history.append(in_msg)
+
             # Update gossip
             self.update_gossip(in_msg)
 
             # Updating the VivaldiPosition for every incoming message which is a response in the following
-            msg_id = in_msg["msg_id"]
-            # Checking if incoming message is a response on which a rtt can be calculated
-            prev_msg = next(
-                (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
-            # If there already exists a message with this ID it is a response and vivaldiposition is updated
-            if(prev_msg):
-                sender = self.env.get_participant(in_msg["send_id"])
+            # Checking if incoming message is a response on which a rtt can be calculated and vivaldiposition is updated
+            if(in_msg.prev_msg_id):
+                sender = self.env.get_participant(in_msg.send_id)
                 cj = sender.get_vivaldi_position()
                 ej = cj.getErrorEstimate()
                 rtt = self.calculate_rtt(in_msg)
@@ -134,18 +132,20 @@ class MobileClient(object):
                     print(
                         "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
             # Extracting message Type
-            msg_type = in_msg["msg_type"]
+            msg_type = in_msg.msg_type
+
             # Standard task message
             if(msg_type == 1):
                 if self.verbose:
                     print("Client {}: Message from Node {} at {} from {}: {}".format(
-                        self.id, in_msg["send_id"], round(self.env.now, 2), round(in_msg["timestamp"], 2), in_msg["msg"]))
+                        self.id, in_msg.send_id, round(self.env.now, 2), round(in_msg.timestamp, 2), in_msg.body))
+
             # Closest node message
             elif(msg_type == 2):
                 if self.verbose:
                     print("Client {}: Message from Node {} at {} from {}: Closest node is {}".format(
-                        self.id, in_msg["send_id"], round(self.env.now, 2), round(in_msg["timestamp"], 2), in_msg["msg"]))
-                self.closest_node_id = in_msg["msg"]
+                        self.id, in_msg.send_id, round(self.env.now, 2), round(in_msg.timestamp, 2), in_msg.body))
+                self.closest_node_id = in_msg.body
 
     def monitor(self):
         """Monitor process for the client.
@@ -243,10 +243,10 @@ class MobileClient(object):
         Returns:
             float: roundtrip time of the message
         """
-        msg_id = in_msg["msg_id"]
+        msg_id = in_msg.id
         out_msg = next(
-            (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
-        rtt = in_msg["rec_timestamp"] - out_msg["timestamp"]
+            (message for message in self.out_msg_history if message.id == in_msg.prev_msg_id), None)
+        rtt = self.env.now - out_msg.timestamp
         return rtt
 
     def get_coordinates(self):
@@ -264,7 +264,7 @@ class MobileClient(object):
         Args:
             in_msg (list[dict]): An incoming message from another participant
         """
-        in_gossip = in_msg["gossip"]
+        in_gossip = in_msg.gossip
         for news in in_gossip:
             # If the node is not in own gossip add it
             if not any(entry.get("id") == news["id"] for entry in self.gossip):

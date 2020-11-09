@@ -3,7 +3,7 @@ import math
 import uuid
 import random
 from operator import itemgetter
-from message import Message
+from .message import Message
 
 
 class FogEnvironment(Environment):
@@ -44,7 +44,8 @@ class FogEnvironment(Environment):
         latency = self.get_latency(send_id, rec_id)
         # yield env.timeout(latency)
         # Assemble message
-        message = Message(env, msg_id, send_id, rec_id, msg, msg_type, latency, gossip, prev_msg_id = prev_msg_id)
+        message = Message(self, msg_id, send_id, rec_id, msg,
+                          msg_type, latency, gossip, prev_msg_id=prev_msg_id)
         # message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id,
         #            "timestamp": self.now, "msg": msg, "msg_type": msg_type, "latency": latency, "gossip": gossip}
         # Send message to receiver
@@ -94,7 +95,7 @@ class FogEnvironment(Environment):
 
     def get_message(self, msg_id):
         return next((message for message in self.messages if message.id == msg_id), None)
-        
+
     def generate_boundaries(self, x_trans, y_trans, method="center"):
         """Calculates the boundaries of the simulation based on the map boundaries and the size of the area
 
@@ -147,7 +148,7 @@ class FogEnvironment(Environment):
         # Sort list by distance ascending
         sorted_neighbours = sorted(neighbours, key=itemgetter('distance'))
         return sorted_neighbours[:4]
-    
+
     def get_closest_node(self, client_id):
         latencies = []
         for node in self.nodes:
@@ -155,5 +156,5 @@ class FogEnvironment(Environment):
             latencies.append({"id": node["id"], "lat": lat})
         sorted_lat = sorted(latencies, key=itemgetter('lat'))
         closest_node_id = sorted_lat[0]["id"]
-        
+
         return closest_node_id

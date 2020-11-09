@@ -31,14 +31,13 @@ class ReconnectionRules(object):
             boolean: Whether the roundtrip time is lower than the threshold
         """
         last_in_msg = in_history[-1]
-        msg_id = last_in_msg["msg_id"]
         out_msg = next(
-            (message for message in out_history if message["msg_id"] == msg_id), None)
+            (message for message in out_history if message.id == last_in_msg.prev_msg_id), None)
         # Message has not come back so RTT cannot be calculated
         if(not out_msg):
             return True
 
-        roundtrip_time = last_in_msg["rec_timestamp"] - out_msg["timestamp"]
+        roundtrip_time = last_in_msg.rec_timestamp - out_msg.timestamp
         return True if roundtrip_time < threshold else False
 
     def timeout_rule(self, out_history, in_history, threshold=1.5):
@@ -50,11 +49,10 @@ class ReconnectionRules(object):
             threshold (int, optional): Threshold which represents the upper bound for the roundtrip time. Defaults to 1.
         """
         last_in_msg = in_history[-1]
-        msg_id = last_in_msg["msg_id"]
         out_msg = next(
-            (message for message in out_history if message["msg_id"] == msg_id), None)
+            (message for message in out_history if message.id == last_in_msg.prev_msg_id), None)
         # If Out Message has been sent longer than threshold and no answer is received
-        if(self.env.now - out_msg["timestamp"] > threshold and not last_in_msg):
+        if(self.env.now - out_msg.timestamp > threshold and not last_in_msg):
             return False
         else:
             return True

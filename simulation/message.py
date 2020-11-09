@@ -1,11 +1,11 @@
 class Message(object):
-    def __init__(self, env, msg_id, send_id, rec_id, msg, msg_type, latency, gossip, prev_msg_id=None):
+    def __init__(self, env, msg_id, send_id, rec_id, body, msg_type, latency, gossip, prev_msg_id=None):
         self.env = env
         self.id = msg_id
         self.send_id = send_id
         self.rec_id = rec_id
         self.timestamp = env.now
-        self.msg = msg
+        self.body = body
         self.msg_type = msg_type
         self.latency = self.env.get_latency(send_id, rec_id)
         self.gossip = gossip
@@ -18,7 +18,7 @@ class Message(object):
            prev_opt_node = prev_msg.opt_node
            opt_latency = self.env.get_latency(prev_opt_node, self.rec_id)
            return prev_opt_node, opt_latency
-       else:
+        else:
            opt_node = self.env.get_closest_node(self.send_id)
            opt_latency = self.env.get_latency(self.send_id, opt_node)
            return opt_node, opt_latency

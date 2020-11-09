@@ -22,7 +22,7 @@ class Metrics(object):
         reconnections = []
         for client in self.env.clients:
             counter = len(
-                list(filter(lambda msg: msg["msg_type"] == 2, client["obj"].out_msg_history)))
+                list(filter(lambda msg: msg.msg_type == 2, client["obj"].out_msg_history)))
             reconnections.append(
                 {"client_id": client["obj"].id, "reconnections": counter})
         df = pd.DataFrame(data=reconnections, columns=[
@@ -37,7 +37,7 @@ class Metrics(object):
             history = [*client["obj"].in_msg_history,
                        *client["obj"].out_msg_history]
             for message in history:
-                latencies.append(message["latency"])
+                latencies.append(message.latency)
 
             data.append({"client_id": client["obj"].id, "lat_mean": np.mean(
                 latencies), "lat_max": np.max(latencies), "lat_min": np.min(latencies)})
@@ -51,8 +51,8 @@ class Metrics(object):
             history = [*client["obj"].in_msg_history,
                        *client["obj"].out_msg_history]
 
-            data.append({"client_id": client["obj"].id, "total_msgs": len(history),  "out_msgs": len(client["obj"].out_msg_history), "in_msgs": len(
-                client["obj"].in_msg_history)})
+            data.append({"client_id": client["obj"].id, "total_msgs": len(history),  "out_msgs": len(client["obj"].out_msg_history), 
+                         "in_msgs": len(client["obj"].in_msg_history)})
         df = pd.DataFrame(data=data, columns=[
                           "client_id", "total_msgs", "out_msgs", "in_msgs"])
         return df
@@ -61,9 +61,9 @@ class Metrics(object):
         data = []
         for client in self.env.clients:
             in_ids = list(
-                map(lambda msg: msg["msg_id"], client["obj"].in_msg_history))
+                map(lambda msg: msg.prev_msg_id, client["obj"].in_msg_history))
             match_ids = list(
-                filter(lambda msg: msg["msg_id"] not in in_ids, client["obj"].out_msg_history))
+                filter(lambda msg: msg.id not in in_ids, client["obj"].out_msg_history))
             data.append(
                 {"client_id": client["obj"].id, "lost_msgs": len(match_ids)})
         return pd.DataFrame(data=data, columns=[
@@ -74,7 +74,7 @@ class Metrics(object):
         for client in self.env.clients:
             first_msg = client["obj"].out_msg_history[0]
             last_msg = client["obj"].out_msg_history[-1]
-            active_time = last_msg["timestamp"] - first_msg["timestamp"]
+            active_time = last_msg.timestamp - first_msg.timestamp
             data.append(
                 {"client_id": client["obj"].id, "active_time": active_time})
         return pd.DataFrame(data=data, columns=["client_id", "active_time"])
