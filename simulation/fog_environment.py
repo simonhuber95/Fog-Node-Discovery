@@ -3,6 +3,7 @@ import math
 import uuid
 import random
 from operator import itemgetter
+from message import Message
 
 
 class FogEnvironment(Environment):
@@ -28,25 +29,24 @@ class FogEnvironment(Environment):
         """
         return random.choice(self.nodes)["id"]
 
-    def send_message(self, send_id, rec_id, msg, gossip, msg_type=1, msg_id=None):
+    def send_message(self, send_id, rec_id, msg, gossip, msg_type=1, prev_msg_id=None):
         """
         Parameter send_id as string: ID of sender
         Paramater rec_id as string: ID of recipient
         Parameter msg as string: Message to be send
         Parameter gossip as dict: Gossip of all virtual coordinates
         Parameter msg_type as int *optional: type of message -> 1: regular message (default), 2: Closest node request, 3: Node discovery
-        Parameter msg_id as uuid *optional: unique id of the message, if none is given a new uuid is created
-        Not complete. env.timeout() is not working for some reason, so the delay has to be awaited at recipient
+        Parameter prev_msg_id as uuid *optional: unique id of the predecessing message
         """
         # Create new message ID if none is given
-        if not msg_id:
-            msg_id = uuid.uuid4()
+        msg_id = uuid.uuid4()
         # get the latency between the two participants
         latency = self.get_latency(send_id, rec_id)
         # yield env.timeout(latency)
         # Assemble message
-        message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id,
-                   "timestamp": self.now, "msg": msg, "msg_type": msg_type, "latency": latency, "gossip": gossip}
+        message = Message(env, msg_id, send_id, rec_id, msg, msg_type, latency, gossip, prev_msg_id = prev_msg_id)
+        # message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id,
+        #            "timestamp": self.now, "msg": msg, "msg_type": msg_type, "latency": latency, "gossip": gossip}
         # Send message to receiver
         self.get_participant(rec_id).msg_pipe.put(message)
         # Put message in gloabal history

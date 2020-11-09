@@ -1,9 +1,7 @@
-import uuid
-
 class Message(object):
-    def __init__(self, env, msg_id, send_id, rec_id, msg, msg_type, latency, gossip. prev_msg_id = None):
+    def __init__(self, env, msg_id, send_id, rec_id, msg, msg_type, latency, gossip, prev_msg_id=None):
         self.env = env
-        self.id = msg_id 
+        self.id = msg_id
         self.send_id = send_id
         self.rec_id = rec_id
         self.timestamp = env.now
@@ -13,7 +11,7 @@ class Message(object):
         self.gossip = gossip
         self.prev_msg_id = prev_msg_id
         self.opt_node, self.opt_latency = self.calc_optimals()
-    
+
     def calc_optimals(self):
         if(self.prev_msg_id):
            prev_msg = self.env.get_message(self.prev_msg_id)
@@ -26,4 +24,4 @@ class Message(object):
            return opt_node, opt_latency
         
     def __str__(self):
-        return "Message {} type from {} to {} at {}: {}".format(self.id, self.msg_type, self.send_id, self.rec_id, self.timestamp, self.msg)
+        return "Message {} type {} from {} to {} at {}: {}".format(self.id, self.msg_type, self.send_id, self.rec_id, self.timestamp, self.msg)
