@@ -87,7 +87,7 @@ for client in client_data.getroot().iterfind('person'):
 
 
 # viz_process1 = env.process(visualize_vivaldi(env))
-# vz_process2 = env.process(visualize_movements(env))
+vz_process2 = env.process(visualize_movements(env))
 
 # add dummy
 # dummy = Dummy(env)

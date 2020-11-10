@@ -41,11 +41,9 @@ class FogEnvironment(Environment):
         # Create new message ID if none is given
         msg_id = uuid.uuid4()
         # get the latency between the two participants
-        latency = self.get_latency(send_id, rec_id)
-        # yield env.timeout(latency)
         # Assemble message
         message = Message(self, msg_id, send_id, rec_id, msg,
-                          msg_type, latency, gossip, prev_msg_id=prev_msg_id)
+                          msg_type, gossip, prev_msg_id=prev_msg_id)
         # Send message to receiver
         delivery_process = self.process(self.message_delivery(message))
         # # Put message in gloabal history

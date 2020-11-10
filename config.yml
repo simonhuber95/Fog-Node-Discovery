@@ -1,9 +1,9 @@
 simulation:
-  runtime: 300 # in seconds
+  runtime: 500 # in seconds
   area: 1000 # x and y translation in meter of random selected area
   area_selection: center # random or center
   verbose: False
-  discovery_protocol: baseline # baseline, vivaldi
+  discovery_protocol: vivaldi # baseline, vivaldi
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
   max_clients: 10

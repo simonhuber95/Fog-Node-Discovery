@@ -154,7 +154,7 @@ class Metrics(object):
             opt_choice = 0
             for in_msg in (x for x in client["obj"].in_msg_history if x.msg_type == 2):
                 # TODO stimmt noch nicht, eigentlich müsste die opt_latency mit der latency der discoverd node verglichen werden
-                y_true.append(in_msg.latency)
+                y_true.append(in_msg.discovered_latency)
                 y_opt.append(in_msg.opt_latency)
                 # Counter of optimal node choice
                 opt_choice = opt_choice + 1 if in_msg.opt_node == in_msg.body else opt_choice 

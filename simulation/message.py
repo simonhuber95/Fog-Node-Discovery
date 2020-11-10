@@ -11,6 +11,8 @@ class Message(object):
         self.gossip = gossip
         self.prev_msg_id = prev_msg_id
         self.opt_node, self.opt_latency = self.calc_optimals()
+        if(msg_type == 2 and prev_msg_id):
+            self.discovered_latency = self.env.get_latency(body, self.rec_id)
 
     def calc_optimals(self):
         if(self.prev_msg_id):
