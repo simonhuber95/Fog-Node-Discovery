@@ -8,6 +8,11 @@ class Metrics(object):
         self.env = env
 
     def all(self):
+        """Collects all metrics and returns them in a single dataframe
+
+        Returns:
+            DataFrame: Collection of all metrics
+        """
         rec = self.collect_reconnections()
         lat = self.collect_latency()
         count = self.collect_message_count()
@@ -21,6 +26,11 @@ class Metrics(object):
         return df_merged
 
     def collect_reconnections(self):
+        """Counts how often a client requests a new connection (msg_type 2)
+
+        Returns:
+            DataFrame: DataFrame filled with the reconnections per client
+        """
         reconnections = []
         for client in self.env.clients:
             counter = len(
@@ -33,6 +43,11 @@ class Metrics(object):
         return df
 
     def collect_latency(self):
+        """Collects the average, min and max latency for each client
+
+        Returns:
+            DataFrame: DataFrame filled with the latencies
+        """
         data = []
         for client in self.env.clients:
             latencies = []
@@ -48,6 +63,11 @@ class Metrics(object):
         return df
 
     def collect_message_count(self):
+        """Counts the total, incoming and outgoing messages for each client
+
+        Returns:
+            DataFrame: DataFrame filled with the message counts
+        """
         data = []
         for client in self.env.clients:
             history = [*client["obj"].in_msg_history,
@@ -72,6 +92,11 @@ class Metrics(object):
             "client_id", "lost_msgs"])
 
     def collect_active_time(self):
+        """Counts how long the client was active in the simulation
+
+        Returns:
+            DataFrame: DataFrame filled with the active time per client
+        """
         data = []
         for client in self.env.clients:
             first_msg = client["obj"].out_msg_history[0]
@@ -82,6 +107,12 @@ class Metrics(object):
         return pd.DataFrame(data=data, columns=["client_id", "active_time"])
 
     def collect_optimal_error(self):
+        """Computes the mean-square-error for every message from type 1 of the optimal latency and the actual latency
+        Computes the percentage how often the client connects to the perfect node 
+
+        Returns:
+            DataFrame: DataFrame filled with the roundtrip-time-mse and perfect connerction rate per client
+        """
         data = []
         for client in self.env.clients:
             # Actual rtt
@@ -107,6 +138,12 @@ class Metrics(object):
         return pd.DataFrame(data=data, columns=["client_id", "rtt_mse", "opt_rate"])
     
     def collect_discovery_error(self):
+        """Computes the mean-square-error for every message from type 2 of the optimal latency and the latency to the suggestes node
+        Computes the percentage how often the client is suggested the perfect node
+
+        Returns:
+            DataFrame: DataFrame filled with the latency-mse and perfect suggestion rate per client
+        """
         data = []
         for client in self.env.clients:
             # Actual latency to discovered node

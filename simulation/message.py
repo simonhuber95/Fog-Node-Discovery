@@ -1,5 +1,5 @@
 class Message(object):
-    def __init__(self, env, msg_id, send_id, rec_id, body, msg_type, latency, gossip, prev_msg_id=None):
+    def __init__(self, env, msg_id, send_id, rec_id, body, msg_type, gossip, prev_msg_id=None):
         self.env = env
         self.id = msg_id
         self.send_id = send_id
