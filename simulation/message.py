@@ -19,9 +19,9 @@ class Message(object):
            opt_latency = self.env.get_latency(prev_opt_node, self.rec_id)
            return prev_opt_node, opt_latency
         else:
-           opt_node = self.env.get_closest_node(self.send_id)
-           opt_latency = self.env.get_latency(self.send_id, opt_node)
-           return opt_node, opt_latency
+            opt_node = self.env.get_closest_node(self.send_id)
+            opt_latency = self.env.get_latency(self.send_id, opt_node)
+            return opt_node, opt_latency
         
     def __str__(self):
-        return "Message {} type {} from {} to {} at {}: {}".format(self.id, self.msg_type, self.send_id, self.rec_id, self.timestamp, self.msg)
+        return "Message {} type {} from {} to {} at {}: {}".format(self.id, self.msg_type, self.send_id, self.rec_id, self.timestamp, self.body)

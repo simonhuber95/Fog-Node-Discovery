@@ -14,7 +14,8 @@ class Metrics(object):
         lost = self.collect_lost_messages()
         active = self.collect_active_time()
         opt_mse = self.collect_optimal_error()
-        data_frames = [rec, lat, count, lost, active, opt_mse]
+        disc_mse = self.collect_discovery_error()
+        data_frames = [rec, lat, count, lost, active, opt_mse, disc_mse]
         df_merged = reduce(lambda left, right: pd.merge(left, right, on=["client_id"],
                                                         how='outer'), data_frames)
         return df_merged
@@ -87,14 +88,43 @@ class Metrics(object):
             y_true = []
             # Optimal rtt
             y_opt = []
+            # counter for chosing the optimal node
+            opt_choice = 0
             for in_msg in client["obj"].in_msg_history:
-                if(in_msg.prev_msg_id):
+                if(in_msg.prev_msg_id and in_msg.msg_type == 1):
                     # Retrieve request for the incoming response
                     out_msg = next(
                         (message for message in client["obj"].out_msg_history if message.id == in_msg.prev_msg_id), None)
                     y_true.append(out_msg.latency + in_msg.latency)
-                    y_opt.append(out_msg.opt_latency - in_msg.opt_latency)
+                    y_opt.append(out_msg.opt_latency + in_msg.opt_latency)
+                    # Counter of optimal node choice
+                    opt_choice = opt_choice + 1 if in_msg.opt_node == in_msg.send_id else opt_choice  
+                    
+            opt_rate = opt_choice/len(y_true) if len(y_true)>0 else 0
             mse = np.square(np.subtract(y_true, y_opt)).mean()
             data.append(
-                {"client_id": client["obj"].id, "rtt_mse": mse})
-        return pd.DataFrame(data=data, columns=["client_id", "rtt_mse"])
+                {"client_id": client["obj"].id, "rtt_mse": mse, "opt_rate": round(opt_rate, 2)})
+        return pd.DataFrame(data=data, columns=["client_id", "rtt_mse", "opt_rate"])
+    
+    def collect_discovery_error(self):
+        data = []
+        for client in self.env.clients:
+            # Actual latency to discovered node
+            y_true = []
+            # Latency to optimal node
+            y_opt = []
+            # counter for chosing the optimal node
+            opt_choice = 0
+            for in_msg in (x for x in client["obj"].in_msg_history if x.msg_type == 2):
+                # TODO stimmt noch nicht, eigentlich müsste die opt_latency mit der latency der discoverd node verglichen werden
+                y_true.append(in_msg.latency)
+                y_opt.append(in_msg.opt_latency)
+                # Counter of optimal node choice
+                opt_choice = opt_choice + 1 if in_msg.opt_node == in_msg.body else opt_choice 
+                 
+            opt_rate = opt_choice/len(y_true) if len(y_true)>0 else 0
+            mse = np.square(np.subtract(y_true, y_opt)).mean()
+            data.append(
+                {"client_id": client["obj"].id, "discovery_mse": mse, "discovery_rate": round(opt_rate, 2)})
+        return pd.DataFrame(data=data, columns=["client_id", "discovery_mse", "discovery_rate"])
+        
