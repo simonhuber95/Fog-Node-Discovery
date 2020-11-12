@@ -153,7 +153,6 @@ class Metrics(object):
             # counter for chosing the optimal node
             opt_choice = 0
             for in_msg in (x for x in client["obj"].in_msg_history if x.msg_type == 2):
-                # TODO stimmt noch nicht, eigentlich müsste die opt_latency mit der latency der discoverd node verglichen werden
                 y_true.append(in_msg.discovered_latency)
                 y_opt.append(in_msg.opt_latency)
                 # Counter of optimal node choice
@@ -164,4 +163,51 @@ class Metrics(object):
             data.append(
                 {"client_id": client["obj"].id, "discovery_mse": mse, "discovery_rate": round(opt_rate, 2)})
         return pd.DataFrame(data=data, columns=["client_id", "discovery_mse", "discovery_rate"])
+    
+    def collect_error_over_time(self):
+        """Computes the mean-square-error for every message from type 2 of the optimal latency and the latency to the suggestes node
+        Computes the percentage how often the client is suggested the perfect node
+
+        Returns:
+            DataFrame: DataFrame filled with the latency-mse and perfect suggestion rate per client
+        """
+        data = []
+        for client in self.env.clients:
+
+            # counter for chosing the optimal node
+            opt_choice = []
+            for in_msg in (x for x in client["obj"].in_msg_history if x.msg_type == 2):
+                y_true= in_msg.discovered_latency
+                y_opt=in_msg.opt_latency
+                # Counter of optimal node choice
+                opt_choice.append(1 if in_msg.opt_node == in_msg.body else 0)
+                timestamp = round(in_msg.timestamp)
+                data.append(
+                    {"timestamp": timestamp, "y_true": y_true, "y_opt": y_opt, "discovery_rate": sum(opt_choice)/len(opt_choice)})
+        df = pd.DataFrame(data=data, columns=["timestamp", "y_true", "y_opt", "discovery_rate"])
+        
+        df = df.groupby("timestamp").apply(lambda x: np.square(np.subtract(x.y_true, x.y_opt)).mean())
+        return df
+    
+    def collect_opt_choice_over_time(self):
+        """Computes the mean-square-error for every message from type 2 of the optimal latency and the latency to the suggestes node
+        Computes the percentage how often the client is suggested the perfect node
+
+        Returns:
+            DataFrame: DataFrame filled with the latency-mse and perfect suggestion rate per client
+        """
+        data = []
+        for client in self.env.clients:
+            # counter for chosing the optimal node
+            opt_choice = []
+            for in_msg in (x for x in client["obj"].in_msg_history if x.msg_type == 2):
+                # Counter of optimal node choice
+                opt_choice.append(1 if in_msg.opt_node == in_msg.body else 0)
+                timestamp = round(in_msg.timestamp)
+                data.append(
+                    {"timestamp": timestamp,  "opt_choice": sum(opt_choice)/len(opt_choice)})
+        df = pd.DataFrame(data=data, columns=["timestamp", "opt_choice"])
+        df = df.groupby("timestamp").agg("mean")
+        return df
+        
         

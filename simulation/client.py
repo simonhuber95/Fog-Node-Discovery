@@ -1,10 +1,12 @@
 import math
+from random import Random
 import simpy
 import random
 import geopandas
 from geopy import distance as geo_distance
 from .reconnection_rules import ReconnectionRules
 from vivaldi.vivaldiposition import VivaldiPosition
+import time
 
 
 class MobileClient(object):
@@ -83,6 +85,8 @@ class MobileClient(object):
                     return
 
     def out_connect(self):
+        my_random = Random(self.id)
+        
         while (True):
             # If no node is registered or connection not valid, trigger the event to search for the closest node
             if(not self.closest_node_id or not self.connection_valid()):
@@ -98,17 +102,23 @@ class MobileClient(object):
                 out_msg = self.env.send_message(
                     self.id, self.closest_node_id, "Client {} sends a task".format(self.id), gossip=self.gossip)
                 self.out_msg_history.append(out_msg)
+                
+           
+            
             try:
-                yield self.env.timeout(random.randint(1, 3))
+                yield self.env.timeout(my_random.randint(1, 3))
             except simpy.Interrupt:
                 return
 
+
     def in_connect(self):
+        max_time = 0
         while(True):
             try:
                 in_msg = yield self.msg_pipe.get()
             except simpy.Interrupt:
                 return
+            start = time.perf_counter()
             # Save timestamp of reception in message object
             in_msg.rec_timestamp = self.env.now
             # Append message to history
@@ -144,6 +154,9 @@ class MobileClient(object):
                     print("Client {}: Message from Node {} at {} from {}: Closest node is {}".format(
                         self.id, in_msg.send_id, round(self.env.now, 2), round(in_msg.timestamp, 2), in_msg.body))
                 self.closest_node_id = in_msg.body
+            timex = time.perf_counter()- start
+            max_time = timex if timex>max_time else max_time
+            print("Timer:", timex, max_time)
 
     def monitor(self):
         """Monitor process for the client.
@@ -190,6 +203,7 @@ class MobileClient(object):
         route = leg.find('route')
         # Setting the travel time in seconds
         duration = route.attrib['trav_time']
+        # Computing the travel time in seconds
         entry['trav_time'] = sum(
             x * int(t) for x, t in zip([3600, 60, 1], duration.split(":")))
         # Setting the distance as float in meters

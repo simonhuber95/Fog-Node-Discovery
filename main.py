@@ -87,7 +87,7 @@ for client in client_data.getroot().iterfind('person'):
 
 
 # viz_process1 = env.process(visualize_vivaldi(env))
-vz_process2 = env.process(visualize_movements(env))
+# vz_process2 = env.process(visualize_movements(env))
 
 # add dummy
 # dummy = Dummy(env)
@@ -95,7 +95,11 @@ vz_process2 = env.process(visualize_movements(env))
 # Run Simulation
 env.run(until=config["simulation"]["runtime"])
 # Printing metrics
-print(Metrics(env).all())
+# print(Metrics(env).all())
+
+Metrics(env).collect_error_over_time().plot()
+Metrics(env).collect_opt_choice_over_time().plot()
+
 
 
 # Reading road layout for Berlin to distribute the nodes
