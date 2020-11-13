@@ -15,6 +15,7 @@ class FogEnvironment(Environment):
         self.nodes = []
         self.boundaries = tuple()
         self.messages = []
+        self.monitor_process = self.process(self.monitor())
 
     def get_participant(self, id):
         """
@@ -168,3 +169,13 @@ class FogEnvironment(Environment):
         closest_node_id = sorted_lat[0]["id"]
 
         return closest_node_id
+
+    def monitor(self):
+        runtime = self.config["simulation"]["runtime"]
+        modulus = runtime / 10
+        while(True):
+            if(self.now == 0):
+                print("Runtime: {}/{}".format(self.now, runtime))
+            elif(self.now % modulus == 0):
+                print("Runtime: {}/{}".format(self.now, runtime))
+            yield self.timeout(1)
