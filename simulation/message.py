@@ -1,5 +1,8 @@
+import time
+
 class Message(object):
     def __init__(self, env, msg_id, send_id, rec_id, body, msg_type, gossip, prev_msg_id=None):
+        
         self.env = env
         self.id = msg_id
         self.send_id = send_id
@@ -13,13 +16,14 @@ class Message(object):
         self.opt_node, self.opt_latency = self.calc_optimals()
         if(msg_type == 2 and prev_msg_id):
             self.discovered_latency = self.env.get_latency(body, self.rec_id)
+        
 
     def calc_optimals(self):
         if(self.prev_msg_id):
-           prev_msg = self.env.get_message(self.prev_msg_id)
-           prev_opt_node = prev_msg.opt_node
-           opt_latency = self.env.get_latency(prev_opt_node, self.rec_id)
-           return prev_opt_node, opt_latency
+            prev_msg = self.env.get_message(self.prev_msg_id)
+            prev_opt_node = prev_msg.opt_node
+            opt_latency = self.env.get_latency(prev_opt_node, self.rec_id)
+            return prev_opt_node, opt_latency
         else:
             opt_node = self.env.get_closest_node(self.send_id)
             opt_latency = self.env.get_latency(self.send_id, opt_node)

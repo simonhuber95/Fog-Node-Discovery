@@ -7,6 +7,7 @@ from geopy import distance as geo_distance
 from .reconnection_rules import ReconnectionRules
 from vivaldi.vivaldiposition import VivaldiPosition
 import time
+import numpy as np
 
 
 class MobileClient(object):
@@ -52,6 +53,9 @@ class MobileClient(object):
         # Gossip of all nodes
         self.gossip = [
             {"id": self.id, "position": self.vivaldiposition, "timestamp": env.now, "type": type(self).__name__}]
+        self.move_performance = np.nan
+        self.out_performance = np.nan
+        self.in_performance = np.nan
 
     def move(self):
         if self.verbose:
@@ -73,6 +77,7 @@ class MobileClient(object):
             vel_y = dist_y / duration
             # Moving until x and y match the end point of the leg
             while(round(to_x, 2) != round(self.phy_x, 2) and round(to_y, 2) != round(self.phy_y, 2)):
+                start = time.perf_counter()
                 self.phy_x += vel_x
                 self.phy_y += vel_y
                 # Stop Client if it steps out of bounds
@@ -83,11 +88,14 @@ class MobileClient(object):
                     yield self.env.timeout(1)
                 except simpy.Interrupt:
                     return
+                
+                self.move_performance = time.perf_counter()- start
 
     def out_connect(self):
         my_random = Random(self.id)
         
         while (True):
+            start = time.perf_counter()
             # If no node is registered or connection not valid, trigger the event to search for the closest node
             if(not self.closest_node_id or not self.connection_valid()):
                 if self.verbose:
@@ -102,17 +110,14 @@ class MobileClient(object):
                 out_msg = self.env.send_message(
                     self.id, self.closest_node_id, "Client {} sends a task".format(self.id), gossip=self.gossip)
                 self.out_msg_history.append(out_msg)
-                
-           
-            
             try:
                 yield self.env.timeout(my_random.randint(1, 3))
             except simpy.Interrupt:
                 return
+            self.out_performance = time.perf_counter()- start
 
 
     def in_connect(self):
-        max_time = 0
         while(True):
             try:
                 in_msg = yield self.msg_pipe.get()
@@ -154,9 +159,7 @@ class MobileClient(object):
                     print("Client {}: Message from Node {} at {} from {}: Closest node is {}".format(
                         self.id, in_msg.send_id, round(self.env.now, 2), round(in_msg.timestamp, 2), in_msg.body))
                 self.closest_node_id = in_msg.body
-            timex = time.perf_counter()- start
-            max_time = timex if timex>max_time else max_time
-            print("Timer:", timex, max_time)
+            self.in_performance = time.perf_counter()- start
 
     def monitor(self):
         """Monitor process for the client.

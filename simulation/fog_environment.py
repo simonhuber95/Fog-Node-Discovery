@@ -4,6 +4,7 @@ import uuid
 import random
 from operator import itemgetter
 from .message import Message
+import time
 
 
 class FogEnvironment(Environment):
@@ -46,8 +47,11 @@ class FogEnvironment(Environment):
                           msg_type, gossip, prev_msg_id=prev_msg_id)
         # Send message to receiver
         delivery_process = self.process(self.message_delivery(message))
-        # # Put message in gloabal history
+        # Put message in gloabal history
         self.messages.append(message)
+        # limiting the message storage
+        if(len(self.messages) > 2000):
+            self.messages.pop(0)
         # # Return messsage to sender to put it into the history
         return message
 

@@ -64,4 +64,38 @@ def visualize_vivaldi(env, EPSG="EPSG:31468"):
         plt.pause(0.001)
         yield env.timeout(5)
 
-    plt.waitforbuttonpress()
+
+def visualize_client_performance(env, runtime):
+    plt.ion()
+    hl, = plt.plot([], [])
+    # client_x, client_y = [], []
+    # client_sc = ax.scatter(client_x, client_y)
+    plt.xlim(0, runtime)
+    plt.ylim(0, 0.02)
+    plt.draw()
+    while True:
+        performance_i = [
+            client["obj"].out_performance for client in env.clients]
+        hl.set_xdata(np.append(hl.get_xdata(), env.now))
+        hl.set_ydata(np.append(hl.get_ydata(), np.mean(performance_i)))
+
+        plt.draw()
+        plt.pause(0.001)
+        yield env.timeout(1)
+
+
+def visualize_node_performance(env, runtime):
+    plt.ion()
+    hl, = plt.plot([], [])
+    plt.xlim(0, runtime)
+    plt.ylim(0, 0.02)
+    plt.draw()
+    while True:
+        performance_i = [
+            node["obj"].discovery_performance for node in env.nodes]
+        hl.set_xdata(np.append(hl.get_xdata(), env.now))
+        hl.set_ydata(np.append(hl.get_ydata(), np.nanmean(performance_i)))
+
+        plt.draw()
+        plt.pause(0.001)
+        yield env.timeout(1)

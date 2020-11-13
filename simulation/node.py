@@ -4,6 +4,9 @@ import random
 from operator import itemgetter
 from vivaldi.vivaldiposition import VivaldiPosition
 import math
+import time
+from random import Random
+import numpy as np
 
 
 class FogNode(object):
@@ -23,6 +26,10 @@ class FogNode(object):
         self.vivaldiposition = VivaldiPosition.create()
         self.gossip = [{"id": self.id, "position": self.vivaldiposition,
                         "timestamp": env.now, "type": type(self).__name__}]
+
+        self.probe_performance = np.nan
+        self.connect_performance = np.nan
+        self.discovery_performance = np.nan
 
         # Start the run process everytime an instance is created.
 
@@ -50,7 +57,7 @@ class FogNode(object):
             if self.verbose:
                 print("Node {}: Message type {} from {} at {} from {}: {}".format(
                     self.id, in_msg.msg_type, in_msg.send_id, self.env.now, in_msg.timestamp, in_msg.body))
-
+            start = time.perf_counter()
             # Update gossip
             self.update_gossip(in_msg)
 
@@ -67,9 +74,6 @@ class FogNode(object):
 
             # Message type 3 = Network Probing -> update VivaldiPosition at response or respond at Request
             elif(in_msg.msg_type == 3):
-                # msg_id = in_msg.id
-                # prev_msg = next(
-                #     (message for message in self.out_msg_history if message.prev_msg_id == msg_id), None)
 
                 # If there already exists a message with this ID it is a response and vivaldiposition is updated
                 if(in_msg.prev_msg_id):
@@ -95,6 +99,8 @@ class FogNode(object):
                     print("Node {} received unknown message type: {}".format(
                         self.id, in_msg.msg_type))
 
+            self.connect_performance = time.perf_counter() - start
+
     def get_closest_node(self):
         """Retrieves the closest node from the network for the requesting client. Decision is based on the given discovery protocol:
         baseline: the optimal discovery as a baseline 
@@ -105,6 +111,7 @@ class FogNode(object):
         """
         while True:
             in_msg = yield self.probe_event
+
             client = self.env.get_participant(in_msg.send_id)
 
             # Calculating the closest node based on the omniscient environment.
@@ -125,8 +132,10 @@ class FogNode(object):
             # send message containing the closest node
             client_id = in_msg.send_id
             msg_id = in_msg.id
-            self.env.send_message(self.id, client_id,
-                                  closest_node_id, gossip=self.gossip, msg_type=2, prev_msg_id=msg_id)
+            start = time.perf_counter()
+            msg = self.env.send_message(self.id, client_id,
+                                        closest_node_id, gossip=self.gossip, msg_type=2, prev_msg_id=msg_id)
+            self.discovery_performance = time.perf_counter() - start
 
     def probe_network(self):
         """Probing process to continually update the virtual position
@@ -134,10 +143,12 @@ class FogNode(object):
         Yields:
             simpy.Event.timeout: timeout event which decides the probing interval
         """
+        my_random = Random(self.id)
         self.neighbours = self.env.get_neighbours(self)
         while(True):
+            start = time.perf_counter()
             # Search for random node, which is not self as proposed by Dabek et al at 50% of the time, otherwise probe neighbourhood
-            if random.randrange(100) < 50:
+            if my_random.randrange(100) < 50:
                 while(True):
                     probe_node = self.env.get_random_node()
                     if(probe_node != self.id):
@@ -150,8 +161,10 @@ class FogNode(object):
             # unnecessary complex timeout for the probing process
             # idea is the longer the newtork is established the less probes are necessary
             # Randomness is to avoid all nodes to probe at the exact same moment
-            timeout = math.log(self.env.now + 1) if math.log(self.env.now + 1) < 2 else 2
-            yield self.env.timeout(timeout + random.random())
+            timeout = math.log(
+                self.env.now + 1) if math.log(self.env.now + 1) < 2 else 2
+            self.probe_performance = time.perf_counter() - start
+            yield self.env.timeout(timeout + my_random.random())
 
     def get_coordinates(self):
         """Returns the physical coordinates of the node
