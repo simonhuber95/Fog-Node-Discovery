@@ -3,6 +3,8 @@ import math
 import uuid
 import random
 from operator import itemgetter
+from .message import Message
+import time
 
 
 class FogEnvironment(Environment):
@@ -12,6 +14,8 @@ class FogEnvironment(Environment):
         self.clients = []
         self.nodes = []
         self.boundaries = tuple()
+        self.messages = []
+        self.monitor_process = self.process(self.monitor())
 
     def get_participant(self, id):
         """
@@ -27,29 +31,34 @@ class FogEnvironment(Environment):
         """
         return random.choice(self.nodes)["id"]
 
-    def send_message(self, send_id, rec_id, msg, gossip, msg_type=1, msg_id=None):
+    def send_message(self, send_id, rec_id, msg, gossip, msg_type=1, prev_msg_id=None):
         """
         Parameter send_id as string: ID of sender
         Paramater rec_id as string: ID of recipient
         Parameter msg as string: Message to be send
         Parameter gossip as dict: Gossip of all virtual coordinates
         Parameter msg_type as int *optional: type of message -> 1: regular message (default), 2: Closest node request, 3: Node discovery
-        Parameter msg_id as uuid *optional: unique id of the message, if none is given a new uuid is created
-        Not complete. env.timeout() is not working for some reason, so the delay has to be awaited at recipient
+        Parameter prev_msg_id as uuid *optional: unique id of the predecessing message
         """
         # Create new message ID if none is given
-        if not msg_id:
-            msg_id = uuid.uuid4()
+        msg_id = uuid.uuid4()
         # get the latency between the two participants
-        latency = self.get_latency(send_id, rec_id)
-        # yield env.timeout(latency)
         # Assemble message
-        message = {"msg_id": msg_id, "send_id": send_id, "rec_id": rec_id,
-                   "timestamp": self.now, "msg": msg, "msg_type": msg_type, "latency": latency, "gossip": gossip}
+        message = Message(self, msg_id, send_id, rec_id, msg,
+                          msg_type, gossip, prev_msg_id=prev_msg_id)
         # Send message to receiver
-        self.get_participant(rec_id).msg_pipe.put(message)
-        # Return messsage to sender to put it into the history
+        delivery_process = self.process(self.message_delivery(message))
+        # Put message in gloabal history
+        self.messages.append(message)
+        # limiting the message storage
+        if(len(self.messages) > 2000):
+            self.messages.pop(0)
+        # # Return messsage to sender to put it into the history
         return message
+
+    def message_delivery(self, message):
+        yield self.timeout(message.latency)
+        self.get_participant(message.rec_id).msg_pipe.put(message)
 
     def get_latency(self, send_id, rec_id):
         """
@@ -57,6 +66,7 @@ class FogEnvironment(Environment):
         Paramater rec_id as string: ID of recipient
         Returns float: Latency in seconds
         """
+        random.seed(self.now)
         sender = self.get_participant(send_id)
         receiver = self.get_participant(rec_id)
         distance = self.get_distance(
@@ -88,6 +98,9 @@ class FogEnvironment(Environment):
         """
         distance = math.sqrt((rec_x - send_x)**2 + (rec_y - send_y)**2)
         return distance
+
+    def get_message(self, msg_id):
+        return next((message for message in self.messages if message.id == msg_id), None)
 
     def generate_boundaries(self, x_trans, y_trans, method="center"):
         """Calculates the boundaries of the simulation based on the map boundaries and the size of the area
@@ -141,13 +154,28 @@ class FogEnvironment(Environment):
         # Sort list by distance ascending
         sorted_neighbours = sorted(neighbours, key=itemgetter('distance'))
         return sorted_neighbours[:4]
-    
+
     def get_closest_node(self, client_id):
+
         latencies = []
         for node in self.nodes:
             lat = self.get_latency(client_id, node["obj"].id)
             latencies.append({"id": node["id"], "lat": lat})
+
+        # Secondary sort by ID, primary sort b latency
+        latencies = sorted(latencies, key=itemgetter('id'))
         sorted_lat = sorted(latencies, key=itemgetter('lat'))
+
         closest_node_id = sorted_lat[0]["id"]
-        
+
         return closest_node_id
+
+    def monitor(self):
+        runtime = self.config["simulation"]["runtime"]
+        modulus = runtime / 10
+        while(True):
+            if(self.now == 0):
+                print("Runtime: {}/{}".format(self.now, runtime))
+            elif(self.now % modulus == 0):
+                print("Runtime: {}/{}".format(self.now, runtime))
+            yield self.timeout(1)

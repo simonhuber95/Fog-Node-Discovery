@@ -12,8 +12,7 @@ import geopandas as gpd
 import yaml
 from pathlib import Path
 
-from simulation.visualize import visualize_movements, visualize_vivaldi
-
+from simulation.visualize import *
 # Set base path of the project
 base_path = Path().absolute()
 
@@ -85,10 +84,11 @@ for client in client_data.getroot().iterfind('person'):
         if(max_clients and len(env.clients) == max_clients):
             break
 
-# visualize.visualize_movements(env, map_path)
 
 # viz_process1 = env.process(visualize_vivaldi(env))
 # vz_process2 = env.process(visualize_movements(env))
+# vz_process3 = env.process(visualize_client_performance(env, config["simulation"]["runtime"]))
+# vz_process4 = env.process(visualize_node_performance(env, config["simulation"]["runtime"]))
 
 # add dummy
 # dummy = Dummy(env)
@@ -97,6 +97,9 @@ for client in client_data.getroot().iterfind('person'):
 env.run(until=config["simulation"]["runtime"])
 # Printing metrics
 print(Metrics(env).all())
+
+Metrics(env).collect_error_over_time().plot()
+# Metrics(env).collect_opt_choice_over_time().plot()
 
 
 # Reading road layout for Berlin to distribute the nodes

@@ -3,6 +3,10 @@ from simpy import Resource
 import random
 from operator import itemgetter
 from vivaldi.vivaldiposition import VivaldiPosition
+import math
+import time
+from random import Random
+import numpy as np
 
 
 class FogNode(object):
@@ -22,6 +26,10 @@ class FogNode(object):
         self.vivaldiposition = VivaldiPosition.create()
         self.gossip = [{"id": self.id, "position": self.vivaldiposition,
                         "timestamp": env.now, "type": type(self).__name__}]
+
+        self.probe_performance = np.nan
+        self.connect_performance = np.nan
+        self.discovery_performance = np.nan
 
         # Start the run process everytime an instance is created.
 
@@ -44,34 +52,32 @@ class FogNode(object):
         """
         while True:
             in_msg = yield self.msg_pipe.get()
-            in_msg.update({"rec_timestamp": self.env.now})
             self.in_msg_history.append(in_msg)
-            # waiting the given latency
-            yield self.env.timeout(in_msg["latency"])
+
             if self.verbose:
                 print("Node {}: Message type {} from {} at {} from {}: {}".format(
-                    self.id, in_msg["msg_type"], in_msg["send_id"], self.env.now, in_msg["timestamp"], in_msg["msg"]))
+                    self.id, in_msg.msg_type, in_msg.send_id, self.env.now, in_msg.timestamp, in_msg.body))
+            start = time.perf_counter()
             # Update gossip
             self.update_gossip(in_msg)
+
             # Message type 1 = Regular Message from client, just reply
-            if(in_msg["msg_type"] == 1):
+            if(in_msg.msg_type == 1):
                 out_msg = self.env.send_message(
-                    self.id, in_msg["send_id"], "Reply from node", gossip=self.gossip, msg_id=in_msg["msg_id"])
+                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, prev_msg_id=in_msg.id)
                 self.out_msg_history.append(out_msg)
 
             # Message type 2 = Node Request -> Trigger search for closest node via event
-            elif(in_msg["msg_type"] == 2):
+            elif(in_msg.msg_type == 2):
                 self.probe_event.succeed(in_msg)
                 self.probe_event = self.env.event()
 
             # Message type 3 = Network Probing -> update VivaldiPosition at response or respond at Request
-            elif(in_msg["msg_type"] == 3):
-                msg_id = in_msg["msg_id"]
-                prev_msg = next(
-                    (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
+            elif(in_msg.msg_type == 3):
+
                 # If there already exists a message with this ID it is a response and vivaldiposition is updated
-                if(prev_msg):
-                    sender = self.env.get_participant(in_msg["send_id"])
+                if(in_msg.prev_msg_id):
+                    sender = self.env.get_participant(in_msg.send_id)
                     cj = sender.get_vivaldi_position()
                     ej = cj.getErrorEstimate()
                     rtt = self.calculate_rtt(in_msg)
@@ -85,13 +91,15 @@ class FogNode(object):
                 # If there is no message with this ID it is a Request and node simply answers
                 else:
                     out_msg = self.env.send_message(
-                        self.id, in_msg["send_id"], "Probe reply from Node", gossip=self.gossip, msg_id=in_msg["msg_id"], msg_type=3)
+                        self.id, in_msg.send_id, "Probe reply from Node", gossip=self.gossip, prev_msg_id=in_msg.id, msg_type=3)
                     self.out_msg_history.append(out_msg)
             # unknown message type
             else:
                 if self.verbose:
                     print("Node {} received unknown message type: {}".format(
-                        self.id, in_msg["msg_type"]))
+                        self.id, in_msg.msg_type))
+
+            self.connect_performance = time.perf_counter() - start
 
     def get_closest_node(self):
         """Retrieves the closest node from the network for the requesting client. Decision is based on the given discovery protocol:
@@ -103,13 +111,14 @@ class FogNode(object):
         """
         while True:
             in_msg = yield self.probe_event
-            client = self.env.get_participant(in_msg["send_id"])
-            
-            # Calculating the closest node based on the omniscient environment. 
+
+            client = self.env.get_participant(in_msg.send_id)
+
+            # Calculating the closest node based on the omniscient environment.
             # Should not be used for realisitic measurements but as a baseline to compare other protocols to
             if (self.discovery_protocol == "baseline"):
                 closest_node_id = self.env.get_closest_node(client.id)
-            
+
             # Calculating the closest node based on the vivaldi virtual coordinates
             elif(self.discovery_protocol == "vivaldi"):
                 estimates = []
@@ -119,12 +128,14 @@ class FogNode(object):
                     estimates.append({"id": node["id"], "rtt": est_rtt})
                 sorted_estimates = sorted(estimates, key=itemgetter('rtt'))
                 closest_node_id = sorted_estimates[0]["id"]
-                
+
             # send message containing the closest node
-            client_id = in_msg["send_id"]
-            msg_id = in_msg["msg_id"]
-            self.env.send_message(self.id, client_id,
-                                  closest_node_id, gossip=self.gossip, msg_type=2, msg_id=msg_id)
+            client_id = in_msg.send_id
+            msg_id = in_msg.id
+            start = time.perf_counter()
+            msg = self.env.send_message(self.id, client_id,
+                                        closest_node_id, gossip=self.gossip, msg_type=2, prev_msg_id=msg_id)
+            self.discovery_performance = time.perf_counter() - start
 
     def probe_network(self):
         """Probing process to continually update the virtual position
@@ -132,10 +143,12 @@ class FogNode(object):
         Yields:
             simpy.Event.timeout: timeout event which decides the probing interval
         """
+        my_random = Random(self.id)
         self.neighbours = self.env.get_neighbours(self)
         while(True):
+            start = time.perf_counter()
             # Search for random node, which is not self as proposed by Dabek et al at 50% of the time, otherwise probe neighbourhood
-            if random.randrange(100) < 50:
+            if my_random.randrange(100) < 50:
                 while(True):
                     probe_node = self.env.get_random_node()
                     if(probe_node != self.id):
@@ -145,7 +158,13 @@ class FogNode(object):
             out_msg = self.env.send_message(
                 self.id, probe_node, "Probing network", gossip=self.gossip, msg_type=3)
             self.out_msg_history.append(out_msg)
-            yield self.env.timeout(random.randint(0, 2))
+            # unnecessary complex timeout for the probing process
+            # idea is the longer the newtork is established the less probes are necessary
+            # Randomness is to avoid all nodes to probe at the exact same moment
+            timeout = math.log(
+                self.env.now + 1) if math.log(self.env.now + 1) < 2 else 2
+            self.probe_performance = time.perf_counter() - start
+            yield self.env.timeout(timeout + my_random.random())
 
     def get_coordinates(self):
         """Returns the physical coordinates of the node
@@ -173,10 +192,9 @@ class FogNode(object):
         Returns:
             float: roundtrip time of the message
         """
-        msg_id = in_msg["msg_id"]
         out_msg = next(
-            (message for message in self.out_msg_history if message["msg_id"] == msg_id), None)
-        rtt = in_msg["rec_timestamp"] - out_msg["timestamp"]
+            (message for message in self.out_msg_history if message.id == in_msg.prev_msg_id), None)
+        rtt = self.env.now - out_msg.timestamp
         return rtt
 
     def update_gossip(self, in_msg):
@@ -185,7 +203,7 @@ class FogNode(object):
         Args:
             in_msg (list[dict]): An incoming message from another participant
         """
-        in_gossip = in_msg["gossip"]
+        in_gossip = in_msg.gossip
         for news in in_gossip:
             # If the news is not in own gossip add it
             if not any(entry.get("id") == news["id"] for entry in self.gossip):
