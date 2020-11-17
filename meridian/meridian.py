@@ -3,7 +3,7 @@ from .ringset import RingSet
 from random import Random
 
 class Meridian(object):
-    def __init__(self, alpha=1, s=2, system_nodes, beta=0.5, l):
+    def __init__(self, system_nodes, alpha=1, s=2, beta=0.5):
         # Radius coefficients
         self.alpha = alpha
         self.s = s
@@ -12,7 +12,7 @@ class Meridian(object):
         # Amount of members per primary ring
         self.k = math.log(system_nodes, 1.6)
         # Amount of members per secondary ring
-        self.l = l
+        self.l = 1.5 * self.k
         # Amount of rings in primary and secondary ringset
         self.max_rings = 8
         self.ring_set = RingSet(

@@ -3,6 +3,7 @@ from simpy import Resource
 import random
 from operator import itemgetter
 from vivaldi.vivaldiposition import VivaldiPosition
+from meridian.meridian import Meridian
 import math
 import time
 from random import Random
@@ -27,12 +28,13 @@ class FogNode(object):
         self.gossip = [{"id": self.id, "position": self.vivaldiposition,
                         "timestamp": env.now, "type": type(self).__name__}]
 
+        self.meridian = Meridian(len(self.env.nodes))
+        # Performance measures
         self.probe_performance = np.nan
         self.connect_performance = np.nan
         self.discovery_performance = np.nan
 
-        # Start the run process everytime an instance is created.
-
+        # Start the processes
         self.connect_process = env.process(self.connect())
         self.closest_node_process = env.process(self.get_closest_node())
         self.probe_network_process = env.process(self.probe_network())
