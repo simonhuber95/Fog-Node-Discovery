@@ -11,36 +11,34 @@ class RingSet(object):
         self.primary_rings = self.init_rings()
         self.secondary_rings = self.init_rings()
 
+    def init_rings(self):
+        """Init the ring structure with i-th ring > 0 but <= max_rings
+        """
+        rings = []
+        for i in range(1, self.max_rings+1):
+            rings.append({"ring": i, "members": [], "frozen": False})
+        return rings
 
-def init_rings(self):
-    """Init the ring structure with i-th ring > 0 but <= max_rings
-    """
-    rings = []
-    for i in range(1, self.max_rings+1):
-        rings.append({"ring": i, "members": [], "frozen": False})
-    return rings
+    def get_ring_number(latency):
+        """Calculates the corresponding ring number for the given latency
 
+        Args:
+            latency (number): latency in seconds
 
-def get_ring_number(latency):
-    """Calculates the corresponding ring number for the given latency
-
-    Args:
-        latency (number): latency in seconds
-
-    Returns:
-        ring_number: ring number for the given latency from (1,..,k)
-    """
-    # Convert latency into ms
-    latency = latency * 1000
-    # High latencies are put in outermost ring
-    if latency > self.alpha*self.s**self.max_rings:
-        return max_rings
-    # negative of low latencies are put in innermost ring
-    if latency < self.alpha:
-        return 1
-    for i in range(1, self.max_rings + 1):
-        if self.alpha * self.s**i-1 < latency < self.alpha * self.s**i
-            return i
+        Returns:
+            ring_number: ring number for the given latency from (1,..,k)
+        """
+        # Convert latency into ms
+        latency = latency * 1000
+        # High latencies are put in outermost ring
+        if latency > self.alpha*self.s**self.max_rings:
+            return max_rings
+        # negative of low latencies are put in innermost ring
+        if latency < self.alpha:
+            return 1
+        for i in range(1, self.max_rings + 1):
+            if self.alpha * self.s**i-1 < latency < self.alpha * self.s**i
+                return i
 
     def get_ring(self, primary, ring_number):
         """Gets the corresponding ring from the rings list
@@ -53,9 +51,11 @@ def get_ring_number(latency):
             dict: ring
         """
         # Check if ring_number is int
-        if isinstance(ring_number, int): retun None
+        if isinstance(ring_number, int): 
+            raise TypeError("Expected type: int, received Type: {}".format(type(ring_number)))
         # Check if ring_number is valid between [1, max_rings]
-        if ring_number < 1 or ring_number > self.max_rings: return None
+        if ring_number < 1 or ring_number > self.max_rings: 
+            raise ValueError('ring_number must be between 1 and {}, received {}'.format(self.max_rings, ring_number))
         # Return the ring on the i-1th postition, because list indes start at 0
         if(primary)
             return self.primary_rings[ring_number-1]
@@ -71,7 +71,6 @@ def get_ring_number(latency):
 
         Args:
             node (dict): Node as Dictionary with mandatory fields {'id': number, 'latency': number, 'prev_ring': number}
-            latency (number): the current latency to the given node in seconds
 
         Returns:
             boolean: whether the action was successful
@@ -119,8 +118,7 @@ def get_ring_number(latency):
             return True
 
     def erase_node(self, node, ring_number):
-        """Erases the given node from the ring
-
+        """Erases the given node from the ring and adds a member from the secondary ring if there are any
         Args:
             node (dict): the dictionary of the node
             ring_number (number): the ring number
@@ -130,15 +128,119 @@ def get_ring_number(latency):
         if primary_ring.get('frozen'):
             return False
         # Get index of node in primary_ring
-        index = next((index for (index, member) in enumerate(primary_ring)
+        index = next((index for (index, member) in enumerate(primary_ring.get('members'))
                      if member.get('id') == node.get('id')), None)
         if index:
-            # pop the node from primary ring
-            primary_ring.pop(index)
+            # pop the node from primary ring members
+            primary_ring.get('members').pop(index)
             # Add first node from same ring level of secondary_ring to primary_ring
             secondary_ring = self.get_ring(
                 primary=False, ring_number=ring_number)
-            if secondary_ring:
-                new_node = secondary_ring.pop()
+            if secondary_ring.get('members'):
+                new_node = secondary_ring.get('members').pop()
                 self.insert_node(new_node)
             return True
+        else:
+            return False
+
+    def freeze_ring(self, ring_number):
+        """Sets the 'frozen' value of the ring to True
+
+        Args:
+            ring_number (int): number of the ring to be frozen
+        """
+        ring = self.get_ring(primary=True, ring_number=ring_number)
+        if ring:
+            ring.update({'frozen': True})
+
+    def unfreeze_ring(self, ring_number):
+        """Sets the 'frozen' value of the ring to False
+
+        Args:
+            ring_number (int): number of the ring to be unfrozen
+        """
+        ring = self.get_ring(primary=True, ring_number=ring_number)
+        if ring:
+            ring.update({'frozen': False})
+
+    def is_ring_full(self, primary, ring_number):
+        """Checks if a given ring is full, meaning the amount of members in the ring is equal to k or l respectively of primary or secondary ring.
+
+        Args:
+            primary (boolean): True if primary ring, False if seconday ring
+            ring_number (int): Number of the ring
+
+        Returns:
+            boolean: Whether or not the ring is full
+        """
+        ring = self.get_ring(primary=primary, ring_number=ring_number)
+        if primary:
+            return len(ring.get('members')) >= self.k
+        else:
+            return len(ring.get('members')) >= self.l
+            
+    def is_ring_empty(self, primary, ring_number):
+        """Checks if a given ring is empty
+
+        Args:
+            primary (boolean): True if primary ring, False if seconday ring
+            ring_number (int): Number of the ring
+
+        Returns:
+            boolean: Whether or not the ring is empty
+        """
+        ring = self.get_ring(primary=primary, ring_number=ring_number)
+        return len(ring.get('members')) == 0
+
+    def eligible_for_replacement(ring_number):
+        """Checks if a ring is eliglible for replacement. Is True if the primary ring is full and the secondary is not empty
+
+        Args:
+            ring_number (int): Number of the ring
+
+        Returns:
+            boolean: Whether or not the ring is eligible for replacement
+        """
+        ring = self.get_ring(primary=True, ring_number=ring_number)
+        if ring.get('frozen'):
+            return False
+        elif ring_number >= self.max_rings:
+            return False
+        elif self.is_ring_full(True, ring_number) and not self.is_ring_empty(False, ring_number):
+            return True
+        else:
+            return False
+
+    def get_number_of_rings(self):
+        """Get how many rings the RingSet has for both primary and secondary rings
+
+        Returns:
+            int: Number of rings in the RingSet
+        """
+        return len(self.primary_rings)
+
+    def swap_ring_members(self, ring_number):
+        """Swaps all the members of the primary ring with the members of the secondary ring
+
+        Args:
+            ring_number (int): Number of the ring
+
+        Returns:
+            boolean: whether swap was successful
+        """
+        # Retrieve primary ring
+        primary_ring = self.get_ring(primary=True, ring_number=ring_number)
+        if primary_ring.get('frozen'):
+            return False
+
+        secondary_ring = self.get_ring(primary=False, ring_number=ring_number)
+        # Exchanging the primary members with the first k secondary members
+        for index in range (self.k):
+            if secondary_ring.get('members'):
+                # Pop old primary member
+                primary_ring.get('member').pop()
+                # Insert new secondary member to primary
+                new_node = secondary_ring.get('members').pop()
+                self.insert_node(new_node)
+        return True
+            
