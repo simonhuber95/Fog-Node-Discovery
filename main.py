@@ -50,6 +50,7 @@ while True:
                                                           x_upper, y_lower, y_upper))
     # Filter Nodes withon boundary
     filtered_nodes_gdf = nodes_gdf.cx[x_lower:x_upper, y_lower:y_upper]
+    env.amount_nodes = len(filtered_nodes_gdf)
     print("Nodes found:", len(filtered_nodes_gdf))
     if(len(filtered_nodes_gdf) >= min_nodes):
         env.boundaries = (x_lower, x_upper, y_lower, y_upper)
@@ -75,6 +76,7 @@ for client in client_data.getroot().iterfind('person'):
        y_lower < float(client_plan.find('activity').attrib["y"]) < y_upper):
         client_id = client.get("id")
         client = MobileClient(env, id=client_id, plan=client_plan,
+                              discovery_protocol=config["simulation"]["discovery_protocol"],
                               latency_threshold=config["clients"]["latency_threshold"],
                               roundtrip_threshold=config["clients"]["roundtrip_threshold"],
                               timeout_threshold=config["clients"]["timeout_threshold"],

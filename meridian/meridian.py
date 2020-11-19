@@ -1,9 +1,12 @@
 import math
 from .ringset import RingSet
+from .gram_schmidt import gs
 from random import Random
+import numpy as np
+from scipy.spatial import ConvexHull
 
 class Meridian(object):
-    def __init__(self, system_nodes, alpha=1, s=2, beta=0.5):
+    def __init__(self, system_nodes, l = None, alpha=1, s=2, beta=0.5):
         # Radius coefficients
         self.alpha = alpha
         self.s = s
@@ -12,11 +15,11 @@ class Meridian(object):
         # Amount of members per primary ring
         self.k = math.log(system_nodes, 1.6)
         # Amount of members per secondary ring
-        self.l = 1.5 * self.k
+        self.l = l if l else 1.5 * self.k
         # Amount of rings in primary and secondary ringset
         self.max_rings = 8
         self.ring_set = RingSet(
-            alpha=alpha, s=s,  k=self.k, l=l, max_rings=self.max_rings)
+            k=self.k, l=l, alpha=alpha, s=s, max_rings=self.max_rings)
 
     def perform_ring_management(self):
         """Meridian achieves geographic diversity by periodically reassessing ring membership decisions 
@@ -40,19 +43,46 @@ class Meridian(object):
         # swap members of primary ring if there is a replacement in secondary ring
         self.ring_set.swap_ring_members(selected_ring)
     
-    def add_node(self, node_id, latency):
+    def add_node(self, node_id, latency, coordinates):
         """Wrapper function to add a node to the Meridian system
 
         Args:
             node_id (uuid): ID of the node
             latency (float): latency of the node in seconds
+            coordinates (list): coordinate vector of the Meridian node
         """
-        node_dict = {'id': node_id, 'latency': latency, 'prev_ring': None}
+        node_dict = {'id': node_id, 'latency': latency, 'prev_ring': None, 'coordinates': coordinates}
         self.ring_set.insert_node(node_dict)
             
-    def calculate_hypervolume(self):
-    
-    def reduce_set_by_n(vector, n):
+    def get_latency_matrix (self):
+        matrix = []
+        for ring in [*self.ring_set.primary_rings *self.ring_set.secondary_rings]:
+            for member in ring.get('members'):
+                matrix.append(member.get('coordinates'))
+        return matrix
+            
+    def get_vector(self):
+        """The coordinates of node i consist of the tuple (di1, di2, ..., dik+l), where dii = 0.
+
+        Returns:
+            list: The latency vector of the Meridian Node
+        """
+        vector = [0]
+        for ring in [*self.ring_set.primary_rings *self.ring_set.secondary_rings]:
+            for member in ring.get('members'):
+                matrix.append(member.get('latency'))
+        return matrix
         
-    def create_latency_matrix(self):
+    def get_volume(self, latency_matrix):
+        hull = ConvexHull(latency_matrix)
+        return hull.volume
+        
+    def calculate_hypervolume(self):
+        latency_matrix = self.get_coordinates()
+        volume = ConvexHull(latency_matrix).volume
+          
+    def reduce_set_by_n(vector, n):
+        return false
     
+    def create_latency_matrix(self):
+        return false

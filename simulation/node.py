@@ -24,11 +24,10 @@ class FogNode(object):
         self.in_msg_history = []
         self.out_msg_history = []
         self.verbose = verbose
-        self.vivaldiposition = VivaldiPosition.create()
-        self.gossip = [{"id": self.id, "position": self.vivaldiposition,
+        self.virtual_position = self.init_virtual_position(discovery_protocol)
+        self.gossip = [{"id": self.id, "position": self.virtual_position,
                         "timestamp": env.now, "type": type(self).__name__}]
 
-        self.meridian = Meridian(len(self.env.nodes))
         # Performance measures
         self.probe_performance = np.nan
         self.connect_performance = np.nan
@@ -59,7 +58,6 @@ class FogNode(object):
             if self.verbose:
                 print("Node {}: Message type {} from {} at {} from {}: {}".format(
                     self.id, in_msg.msg_type, in_msg.send_id, self.env.now, in_msg.timestamp, in_msg.body))
-            start = time.perf_counter()
             # Update gossip
             self.update_gossip(in_msg)
 
@@ -76,20 +74,9 @@ class FogNode(object):
 
             # Message type 3 = Network Probing -> update VivaldiPosition at response or respond at Request
             elif(in_msg.msg_type == 3):
-
-                # If there already exists a message with this ID it is a response and vivaldiposition is updated
+                # If there already exists a message with this ID it is a response and the virtual position is updated
                 if(in_msg.prev_msg_id):
-                    sender = self.env.get_participant(in_msg.send_id)
-                    cj = sender.get_vivaldi_position()
-                    ej = cj.getErrorEstimate()
-                    rtt = self.calculate_rtt(in_msg)
-
-                    try:
-                        self.vivaldiposition.update(rtt, cj, ej)
-                    except ValueError as e:
-                        print(
-                            "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
-
+                    self.update_virtual_position(in_msg)
                 # If there is no message with this ID it is a Request and node simply answers
                 else:
                     out_msg = self.env.send_message(
@@ -100,8 +87,6 @@ class FogNode(object):
                 if self.verbose:
                     print("Node {} received unknown message type: {}".format(
                         self.id, in_msg.msg_type))
-
-            self.connect_performance = time.perf_counter() - start
 
     def get_closest_node(self):
         """Retrieves the closest node from the network for the requesting client. Decision is based on the given discovery protocol:
@@ -126,10 +111,14 @@ class FogNode(object):
                 estimates = []
                 for node in filter(lambda x: x['type'] == type(self).__name__, self.gossip):
                     cj = node["position"]
-                    est_rtt = cj.estimateRTT(client.get_vivaldi_position())
+                    est_rtt = cj.estimateRTT(client.get_virtual_position())
                     estimates.append({"id": node["id"], "rtt": est_rtt})
                 sorted_estimates = sorted(estimates, key=itemgetter('rtt'))
                 closest_node_id = sorted_estimates[0]["id"]
+            
+            elif(self.discovery_protocol == "meridian"):
+                # TODO
+                closest_node_id  = 1
 
             # send message containing the closest node
             client_id = in_msg.send_id
@@ -177,13 +166,13 @@ class FogNode(object):
         """
         return self.phy_x, self.phy_y
 
-    def get_vivaldi_position(self):
-        """Returns the virtual coordinate
+    def get_virtual_position(self):
+        """Returns the virtual position
 
         Returns:
-            VivaldiPosition: the VivaldiPosition of the node
+            other: the virtual position of the node
         """
-        return self.vivaldiposition
+        return self.virtual_position
 
     def calculate_rtt(self, in_msg):
         """Calculates the round-trip-time (rtt) of the incoming message by comparing timestamps with the out message
@@ -217,8 +206,36 @@ class FogNode(object):
                 # keep own gossip up to date
                 if news["id"] == self.id:
                     own_news.update(
-                        {"position": self.vivaldiposition, "timestamp": self.env.now})
+                        {"position": self.get_virtual_position(), "timestamp": self.env.now})
                 # Update news if it is older than incoming news
                 elif own_news["timestamp"] < news["timestamp"]:
                     own_news.update(
-                        {"position": self.vivaldiposition, "timestamp": self.env.now})
+                        {"position": self.get_virtual_position(), "timestamp": self.env.now})
+
+    def init_virtual_position(self, discovery_protocol):
+        if discovery_protocol == "baseline":
+            return None
+        elif discovery_protocol == "vivaldi":
+            return VivaldiPosition.create()
+        elif discovery_protocol == "meridian":
+            return Meridian(self.env.amount_nodes)
+
+    def update_virtual_position(self, in_msg):
+        if self.discovery_protocol == "baseline":
+            return
+
+        sender = self.env.get_participant(in_msg.send_id)
+        if self.discovery_protocol == "vivaldi":
+            cj = sender.get_virtual_position()
+            ej = cj.getErrorEstimate()
+            rtt = self.calculate_rtt(in_msg)
+
+            try:
+                self.get_virtual_position().update(rtt, cj, ej)
+            except ValueError as e:
+                print(
+                    "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
+
+        elif self.discovery_protocol == "meridian":
+            Meridian.add_node(sender.id, in_msg.latency,
+                              sender.virtual_position.get_vector())

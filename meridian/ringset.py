@@ -2,9 +2,9 @@ import math
 
 
 class RingSet(object):
-    def __init__(self, alpha=1, s=2,  k, l, max_rings=8):
-        self.alpha
-        self.s
+    def __init__(self, k, l, alpha=1, s=2, max_rings=8):
+        self.alpha = alpha
+        self.s = s
         self.k = k
         self.l = l
         self.max_rings = max_rings
@@ -37,7 +37,7 @@ class RingSet(object):
         if latency < self.alpha:
             return 1
         for i in range(1, self.max_rings + 1):
-            if self.alpha * self.s**i-1 < latency < self.alpha * self.s**i
+            if (self.alpha * self.s**i-1) < latency < (self.alpha * self.s**i):
                 return i
 
     def get_ring(self, primary, ring_number):
@@ -57,7 +57,7 @@ class RingSet(object):
         if ring_number < 1 or ring_number > self.max_rings: 
             raise ValueError('ring_number must be between 1 and {}, received {}'.format(self.max_rings, ring_number))
         # Return the ring on the i-1th postition, because list indes start at 0
-        if(primary)
+        if(primary):
             return self.primary_rings[ring_number-1]
         else:
             return self.secondary_rings[ring_number-1]
@@ -92,7 +92,7 @@ class RingSet(object):
             # Check if ring still has space
             if(len(ring_members) < self.k):
                 # Update node with new ring number
-                node.update({'prev_ring': ring_number)
+                node.update({'prev_ring': ring_number})
                 # Add to new ring
                 ring_memebers.append(node)
 

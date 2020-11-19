@@ -11,7 +11,7 @@ import numpy as np
 
 
 class MobileClient(object):
-    def __init__(self, env, id, plan, latency_threshold=0.9, roundtrip_threshold=1.2, timeout_threshold=2, verbose=True):
+    def __init__(self, env, id, plan, discovery_protocol, latency_threshold=0.9, roundtrip_threshold=1.2, timeout_threshold=2, verbose=True):
         """ Initializes a Mobile Client
         Args:
             env (simpy.Environment): The Environment of the simulation
@@ -48,11 +48,12 @@ class MobileClient(object):
         self.monitor_process = self.env.process(self.monitor())
         self.stop_event = env.event()
 
-        # Init the VivaldiPosition
-        self.vivaldiposition = VivaldiPosition.create()
+        # Init the virtual Position
+        self.virtual_position = self.init_virtual_position(discovery_protocol)
+        self.discovery_protocol = discovery_protocol
         # Gossip of all nodes
         self.gossip = [
-            {"id": self.id, "position": self.vivaldiposition, "timestamp": env.now, "type": type(self).__name__}]
+            {"id": self.id, "position": self.get_virtual_position(), "timestamp": env.now, "type": type(self).__name__}]
         self.move_performance = np.nan
         self.out_performance = np.nan
         self.in_performance = np.nan
@@ -116,7 +117,6 @@ class MobileClient(object):
                 return
             self.out_performance = time.perf_counter()- start
 
-
     def in_connect(self):
         while(True):
             try:
@@ -132,18 +132,10 @@ class MobileClient(object):
             # Update gossip
             self.update_gossip(in_msg)
 
-            # Updating the VivaldiPosition for every incoming message which is a response in the following
-            # Checking if incoming message is a response on which a rtt can be calculated and vivaldiposition is updated
+            # Updating the virtual Position for every incoming message which is a response in the following
+            # Checking if incoming message is a response on which a rtt can be calculated and virtual position is updated
             if(in_msg.prev_msg_id):
-                sender = self.env.get_participant(in_msg.send_id)
-                cj = sender.get_vivaldi_position()
-                ej = cj.getErrorEstimate()
-                rtt = self.calculate_rtt(in_msg)
-                try:
-                    self.vivaldiposition.update(rtt, cj, ej)
-                except ValueError as e:
-                    print(
-                        "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
+                self.update_virtual_position(in_msg)
             # Extracting message Type
             msg_type = in_msg.msg_type
 
@@ -241,13 +233,32 @@ class MobileClient(object):
             print("Client {} stopped: {}".format(self.id, cause))
         # self.move_process.fail(exception=Exception)
 
-    def get_vivaldi_position(self):
-        """Returns the virtual coordinate
+    def init_virtual_position(self, discovery_protocol):
+        if discovery_protocol == "vivaldi":
+            return VivaldiPosition.create()
+        else:
+            return None
+
+    def get_virtual_position(self):
+        """Returns the virtual position
 
         Returns:
-            VivaldiPosition: the VivaldiPosition of the node
+            other: the virtual position of the node
         """
-        return self.vivaldiposition
+        return self.virtual_position
+
+    def update_virtual_position(self, in_msg):
+        sender = self.env.get_participant(in_msg.send_id)
+        if self.discovery_protocol == "vivaldi":
+            cj = sender.get_virtual_position()
+            ej = cj.getErrorEstimate()
+            rtt = self.calculate_rtt(in_msg)
+
+            try:
+                self.virtual_position.update(rtt, cj, ej)
+            except ValueError as e:
+                print(
+                    "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
 
     def calculate_rtt(self, in_msg):
         """Calculates the round-trip-time (rtt) of the incoming message by comparing timestamps with the out message
@@ -292,7 +303,7 @@ class MobileClient(object):
                 # keep own gossip up to date
                 if news["id"] == self.id:
                     own_news.update(
-                        {"position": self.vivaldiposition, "timestamp": self.env.now})
+                        {"position": self.get_virtual_position(), "timestamp": self.env.now})
                 elif own_news["timestamp"] < news["timestamp"]:
                     own_news.update(
-                        {"position": self.vivaldiposition, "timestamp": self.env.now})
+                        {"position": self.get_virtual_position(), "timestamp": self.env.now})
