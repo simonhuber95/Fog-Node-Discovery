@@ -89,12 +89,19 @@ class MobileClient(object):
                     yield self.env.timeout(1)
                 except simpy.Interrupt:
                     return
-                
-                self.move_performance = time.perf_counter()- start
+
+                self.move_performance = time.perf_counter() - start
 
     def out_connect(self):
+        """The process which handles outgoing messages
+        If no node is registered or the connection is not valid anymore (see ReconnectionRules), the client sends a type 2 Message to a node
+        else the client sends a task to the closest node
+
+        Yields:
+            simpy.timeout: Timeout event 
+        """
         my_random = Random(self.id)
-        
+
         while (True):
             start = time.perf_counter()
             # If no node is registered or connection not valid, trigger the event to search for the closest node
@@ -115,9 +122,17 @@ class MobileClient(object):
                 yield self.env.timeout(my_random.randint(1, 3))
             except simpy.Interrupt:
                 return
-            self.out_performance = time.perf_counter()- start
+            self.out_performance = time.perf_counter() - start
 
     def in_connect(self):
+        """The process which handles the incoming messages.
+        Updates Gossip, updates the virtual position and depending on the message type performs different actions
+        Type 1: Standard answer from node -> do nothin
+        Type 2: Response to closest node request -> set closest_node_id to body of the answer
+
+        Yields:
+            simypy.Store: incoming Message pipe of the cleint
+        """
         while(True):
             try:
                 in_msg = yield self.msg_pipe.get()
@@ -151,7 +166,7 @@ class MobileClient(object):
                     print("Client {}: Message from Node {} at {} from {}: Closest node is {}".format(
                         self.id, in_msg.send_id, round(self.env.now, 2), round(in_msg.timestamp, 2), in_msg.body))
                 self.closest_node_id = in_msg.body
-            self.in_performance = time.perf_counter()- start
+            self.in_performance = time.perf_counter() - start
 
     def monitor(self):
         """Monitor process for the client.
@@ -234,6 +249,14 @@ class MobileClient(object):
         # self.move_process.fail(exception=Exception)
 
     def init_virtual_position(self, discovery_protocol):
+        """Inits the virtual position depending on the discovery protocol
+
+        Args:
+            discovery_protocol (string): the used discovery protocol
+
+        Returns:
+            other: the virtual position for the client
+        """
         if discovery_protocol == "vivaldi":
             return VivaldiPosition.create()
         else:
@@ -248,6 +271,11 @@ class MobileClient(object):
         return self.virtual_position
 
     def update_virtual_position(self, in_msg):
+        """Wrapper function to update the virtual position. Checks which protocol is currently used and updates the respective virtual coordinate
+
+        Args:
+            in_msg (Message)): The incoming Message on which the virtual position is updated
+        """
         sender = self.env.get_participant(in_msg.send_id)
         if self.discovery_protocol == "vivaldi":
             cj = sender.get_virtual_position()
