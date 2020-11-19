@@ -19,7 +19,7 @@ class Meridian(object):
         # Amount of rings in primary and secondary ringset
         self.max_rings = 8
         self.ring_set = RingSet(
-            k=self.k, l=l, alpha=alpha, s=s, max_rings=self.max_rings)
+            k=self.k, l=self.l, alpha=alpha, s=s, max_rings=self.max_rings)
 
     def perform_ring_management(self):
         """Meridian achieves geographic diversity by periodically reassessing ring membership decisions 
@@ -56,7 +56,7 @@ class Meridian(object):
             
     def get_latency_matrix (self):
         matrix = []
-        for ring in [*self.ring_set.primary_rings *self.ring_set.secondary_rings]:
+        for ring in [*self.ring_set.primary_rings, *self.ring_set.secondary_rings]:
             for member in ring.get('members'):
                 matrix.append(member.get('coordinates'))
         return matrix
@@ -68,18 +68,20 @@ class Meridian(object):
             list: The latency vector of the Meridian Node
         """
         vector = [0]
-        for ring in [*self.ring_set.primary_rings *self.ring_set.secondary_rings]:
+        for ring in [*self.ring_set.primary_rings, *self.ring_set.secondary_rings]:
             for member in ring.get('members'):
-                matrix.append(member.get('latency'))
-        return matrix
+                vector.append(member.get('latency'))
+        return vector
         
     def get_volume(self, latency_matrix):
         hull = ConvexHull(latency_matrix)
         return hull.volume
         
     def calculate_hypervolume(self):
-        latency_matrix = self.get_coordinates()
-        volume = ConvexHull(latency_matrix).volume
+        latency_matrix = self.get_latency_matrix()
+        print(latency_matrix)
+        # gs_matrix = gs(latency_matrix)
+ 
           
     def reduce_set_by_n(vector, n):
         return false

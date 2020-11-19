@@ -19,7 +19,7 @@ class RingSet(object):
             rings.append({"ring": i, "members": [], "frozen": False})
         return rings
 
-    def get_ring_number(latency):
+    def get_ring_number(self, latency):
         """Calculates the corresponding ring number for the given latency
 
         Args:
@@ -37,8 +37,9 @@ class RingSet(object):
         if latency < self.alpha:
             return 1
         for i in range(1, self.max_rings + 1):
-            if (self.alpha * self.s**i-1) < latency < (self.alpha * self.s**i):
+            if (self.alpha * self.s**(i-1)) <= latency < (self.alpha * self.s**i):
                 return i
+        print(latency)
 
     def get_ring(self, primary, ring_number):
         """Gets the corresponding ring from the rings list
@@ -51,7 +52,7 @@ class RingSet(object):
             dict: ring
         """
         # Check if ring_number is int
-        if isinstance(ring_number, int): 
+        if not isinstance(ring_number, int): 
             raise TypeError("Expected type: int, received Type: {}".format(type(ring_number)))
         # Check if ring_number is valid between [1, max_rings]
         if ring_number < 1 or ring_number > self.max_rings: 
@@ -78,23 +79,25 @@ class RingSet(object):
         ring_number = self.get_ring_number(node.get('latency'))
         ring = self.get_ring(primary=True, ring_number=ring_number)
         # If ring is frozen no updates can be made
-        if(ring.get('frozen') == true):
+        if(ring.get('frozen')):
             return False
         ring_members = ring.get('members')
         # Node is not in Ring, so it gets removed from old ring, added the new rind and the oldest ring member is popped
         if node.get('prev_ring') != ring:
-            # Remove Node from old ring
-            old_ring = self.get_ring(node.get('prev_ring'))
-            if old_ring:
-                success = self.erase_node(node, old_ring)
-                if not success:
-                    return False
+            # Node gets only removed from old ring, if it has an old ring
+            if node.get('prev_ring'):
+                # Remove Node from old ring
+                old_ring = self.get_ring(True, node.get('prev_ring'))
+                if old_ring:
+                    success = self.erase_node(node, old_ring)
+                    if not success:
+                        return False
             # Check if ring still has space
             if(len(ring_members) < self.k):
                 # Update node with new ring number
                 node.update({'prev_ring': ring_number})
                 # Add to new ring
-                ring_memebers.append(node)
+                ring_members.append(node)
 
             # Otherwise put node in secondary_ring
             else:
@@ -192,7 +195,7 @@ class RingSet(object):
         ring = self.get_ring(primary=primary, ring_number=ring_number)
         return len(ring.get('members')) == 0
 
-    def eligible_for_replacement(ring_number):
+    def eligible_for_replacement(self, ring_number):
         """Checks if a ring is eliglible for replacement. Is True if the primary ring is full and the secondary is not empty
 
         Args:

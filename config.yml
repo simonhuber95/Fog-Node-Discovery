@@ -3,7 +3,7 @@ simulation:
   area: 1000 # x and y translation in meter of random selected area
   area_selection: center # random or center
   verbose: False
-  discovery_protocol: vivaldi # baseline, vivaldi
+  discovery_protocol: meridian # baseline, vivaldi, meridian
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
   max_clients: None

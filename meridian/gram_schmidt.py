@@ -1,7 +1,7 @@
-import numpy
+import numpy as np
 
 def gs_cofficient(v1, v2):
-    return numpy.dot(v2, v1) / numpy.dot(v1, v1)
+    return np.dot(v2, v1) / np.dot(v1, v1)
 
 def multiply(cofficient, v):
     return map((lambda x : x * cofficient), v)
@@ -20,3 +20,11 @@ def gs(X):
             #print "i =", i, ", temporary vector =", temp_vec
         Y.append(temp_vec)
     return Y
+
+def gram_schmidt(vectors):
+    basis = []
+    for v in vectors:
+        w = v - np.sum( np.dot(v,b)*b  for b in basis )
+        if (w > 1e-10).any():  
+            basis.append(w/np.linalg.norm(w))
+    return np.array(basis)

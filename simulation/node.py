@@ -118,7 +118,8 @@ class FogNode(object):
             
             elif(self.discovery_protocol == "meridian"):
                 # TODO
-                closest_node_id  = 1
+                closest_node_id = self.id
+                self.virtual_position.calculate_hypervolume()
 
             # send message containing the closest node
             client_id = in_msg.send_id
@@ -237,5 +238,6 @@ class FogNode(object):
                     "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
 
         elif self.discovery_protocol == "meridian":
-            Meridian.add_node(sender.id, in_msg.latency,
+            self.virtual_position.add_node(sender.id, in_msg.latency,
                               sender.virtual_position.get_vector())
+            
