@@ -3,19 +3,21 @@ from .ringset import RingSet
 from .gram_schmidt import gs
 from random import Random
 import numpy as np
+import pandas as pd
 from scipy.spatial import ConvexHull
 
 class Meridian(object):
-    def __init__(self, system_nodes, l = None, alpha=1, s=2, beta=0.5):
+    def __init__(self, id, system_nodes, l = None, alpha=1, s=2, beta=0.5):
         # Radius coefficients
+        self.id = id
         self.alpha = alpha
         self.s = s
         # Acceptance threshold
         self.beta = beta
         # Amount of members per primary ring
-        self.k = math.log(system_nodes, 1.6)
+        self.k = round(math.log(system_nodes, 1.6))
         # Amount of members per secondary ring
-        self.l = l if l else 1.5 * self.k
+        self.l = l if l else system_nodes - self.k
         # Amount of rings in primary and secondary ringset
         self.max_rings = 8
         self.ring_set = RingSet(
@@ -55,7 +57,7 @@ class Meridian(object):
         self.ring_set.insert_node(node_dict)
             
     def get_latency_matrix (self):
-        matrix = []
+        matrix = np.array()
         for ring in [*self.ring_set.primary_rings, *self.ring_set.secondary_rings]:
             for member in ring.get('members'):
                 matrix.append(member.get('coordinates'))
@@ -67,11 +69,16 @@ class Meridian(object):
         Returns:
             list: The latency vector of the Meridian Node
         """
-        vector = [0]
+        data = {}
         for ring in [*self.ring_set.primary_rings, *self.ring_set.secondary_rings]:
             for member in ring.get('members'):
-                vector.append(member.get('latency'))
-        return vector
+                data[member.get('id')] = member.get('latency')
+                # ids.append(member.get('id'))
+                # latencies.append(member.get('latency'))
+        # print("data:" ,data)
+        df = pd.DataFrame(data = data, index = [0])
+        # print(df)
+        return df
         
     def get_volume(self, latency_matrix):
         hull = ConvexHull(latency_matrix)
@@ -79,10 +86,11 @@ class Meridian(object):
         
     def calculate_hypervolume(self):
         latency_matrix = self.get_latency_matrix()
-        print(latency_matrix)
-        # gs_matrix = gs(latency_matrix)
- 
-          
+        # print(latency_matrix)
+        
+        gs_matrix = gs(latency_matrix)
+        # print(gs_matrix)
+              
     def reduce_set_by_n(vector, n):
         return false
     

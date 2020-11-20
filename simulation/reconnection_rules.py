@@ -52,6 +52,9 @@ class ReconnectionRules(object):
         out_msg = next(
             (message for message in out_history if message.id == last_in_msg.prev_msg_id), None)
         # If Out Message has been sent longer than threshold and no answer is received
+        if(not out_msg):
+            return False
+        
         if(self.env.now - out_msg.timestamp > threshold and not last_in_msg):
             return False
         else:

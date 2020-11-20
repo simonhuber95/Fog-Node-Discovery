@@ -111,7 +111,7 @@ class RingSet(object):
                 sec_members.append(node)
                 # Erase oldest secondary member if there are more than l members
                 if len(sec_members) >= self.l:
-                    self.sec_members.pop(0)
+                    sec_members.pop(0)
             return True
         # Node is already a member of the ring and just needs an update
         else:

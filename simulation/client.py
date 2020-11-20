@@ -166,6 +166,16 @@ class MobileClient(object):
                     print("Client {}: Message from Node {} at {} from {}: Closest node is {}".format(
                         self.id, in_msg.send_id, round(self.env.now, 2), round(in_msg.timestamp, 2), in_msg.body))
                 self.closest_node_id = in_msg.body
+
+            # Network probing performed by a node
+            elif(msg_type == 3):
+                if self.verbose:
+                    print("Client {}: Message from Node {} at {} from {}: {}".format(
+                        self.id, in_msg.send_id, round(self.env.now, 2), round(in_msg.timestamp, 2), in_msg.body))
+                out_msg = self.env.send_message(
+                    self.id, in_msg.send_id, "Client {} response to ping".format(self.id), gossip=self.gossip, msg_type = 3)
+                self.out_msg_history.append(out_msg)
+
             self.in_performance = time.perf_counter() - start
 
     def monitor(self):

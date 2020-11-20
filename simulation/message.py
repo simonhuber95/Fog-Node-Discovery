@@ -1,4 +1,5 @@
 import time
+from .node import FogNode
 
 class Message(object):
     def __init__(self, env, msg_id, send_id, rec_id, body, msg_type, gossip, prev_msg_id=None):
@@ -19,6 +20,8 @@ class Message(object):
         
 
     def calc_optimals(self):
+        if (isinstance(self.env.get_participant(self.send_id), FogNode) and isinstance(self.env.get_participant(self.rec_id), FogNode)):
+            return None, None
         if(self.prev_msg_id):
             prev_msg = self.env.get_message(self.prev_msg_id)
             prev_opt_node = prev_msg.opt_node

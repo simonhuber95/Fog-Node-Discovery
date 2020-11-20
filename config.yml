@@ -1,6 +1,6 @@
 simulation:
   runtime: 10 # in seconds
-  area: 1000 # x and y translation in meter of random selected area
+  area: 1100 # x and y translation in meter of random selected area
   area_selection: center # random or center
   verbose: False
   discovery_protocol: meridian # baseline, vivaldi, meridian
