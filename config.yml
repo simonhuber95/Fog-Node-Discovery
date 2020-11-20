@@ -1,5 +1,5 @@
 simulation:
-  runtime: 10 # in seconds
+  runtime: 30 # in seconds
   area: 1100 # x and y translation in meter of random selected area
   area_selection: center # random or center
   verbose: False
