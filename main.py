@@ -86,6 +86,7 @@ for client in client_data.getroot().iterfind('person'):
         if(max_clients and len(env.clients) == max_clients):
             break
 
+print("Active clients: ", len(env.clients))
 
 # viz_process1 = env.process(visualize_vivaldi(env))
 # vz_process2 = env.process(visualize_movements(env))

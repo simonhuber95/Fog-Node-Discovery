@@ -31,7 +31,7 @@ class FogEnvironment(Environment):
         """
         return random.choice(self.nodes)["id"]
 
-    def send_message(self, send_id, rec_id, msg, gossip, msg_type=1, prev_msg_id=None):
+    def send_message(self, send_id, rec_id, msg, gossip, response = False, msg_type=1, prev_msg_id=None):
         """
         Parameter send_id as string: ID of sender
         Paramater rec_id as string: ID of recipient
@@ -45,13 +45,13 @@ class FogEnvironment(Environment):
         # get the latency between the two participants
         # Assemble message
         message = Message(self, msg_id, send_id, rec_id, msg,
-                          msg_type, gossip, prev_msg_id=prev_msg_id)
+                          msg_type, gossip, response = response, prev_msg_id=prev_msg_id)
         # Send message to receiver
         delivery_process = self.process(self.message_delivery(message))
         # Put message in gloabal history
         self.messages.append(message)
         # limiting the message storage
-        if(len(self.messages) > 2000):
+        if(len(self.messages) > 5000):
             self.messages.pop(0)
         # # Return messsage to sender to put it into the history
         return message
@@ -66,7 +66,7 @@ class FogEnvironment(Environment):
         Paramater rec_id as string: ID of recipient
         Returns float: Latency in seconds
         """
-        random.seed(self.now)
+        random.seed(str(self.now) + str(send_id) + str(rec_id))
         sender = self.get_participant(send_id)
         receiver = self.get_participant(rec_id)
         distance = self.get_distance(

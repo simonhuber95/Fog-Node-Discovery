@@ -24,7 +24,7 @@ class MobileClient(object):
         self.connected = False
         self.verbose = verbose
         # ID of closest node as string
-        self.closest_node_id = ""
+        self.closest_node_id = None
         self.latency_threshold = latency_threshold
         self.roundtrip_threshold = roundtrip_threshold
         self.timeout_threshold = timeout_threshold
@@ -101,6 +101,8 @@ class MobileClient(object):
             simpy.timeout: Timeout event 
         """
         my_random = Random(self.id)
+        # wait until nodes are ready
+        yield self.env.timeout(5)
 
         while (True):
             start = time.perf_counter()
@@ -157,23 +159,20 @@ class MobileClient(object):
             # Standard task message
             if(msg_type == 1):
                 if self.verbose:
-                    print("Client {}: Message from Node {} at {} from {}: {}".format(
-                        self.id, in_msg.send_id, round(self.env.now, 2), round(in_msg.timestamp, 2), in_msg.body))
+                    print("Client {}: {}".format(self.id, in_msg))
 
             # Closest node message
             elif(msg_type == 2):
                 if self.verbose:
-                    print("Client {}: Message from Node {} at {} from {}: Closest node is {}".format(
-                        self.id, in_msg.send_id, round(self.env.now, 2), round(in_msg.timestamp, 2), in_msg.body))
+                    print("Client {}: {}".format(self.id, in_msg))
                 self.closest_node_id = in_msg.body
 
             # Network probing performed by a node
             elif(msg_type == 3):
                 if self.verbose:
-                    print("Client {}: Message from Node {} at {} from {}: {}".format(
-                        self.id, in_msg.send_id, round(self.env.now, 2), round(in_msg.timestamp, 2), in_msg.body))
+                    print("Client {}: {}".format(self.id, in_msg))
                 out_msg = self.env.send_message(
-                    self.id, in_msg.send_id, "Client {} response to ping".format(self.id), gossip=self.gossip, msg_type = 3)
+                    self.id, in_msg.send_id, "Client {} response to ping".format(self.id), gossip=self.gossip, response = True, msg_type = 3)
                 self.out_msg_history.append(out_msg)
 
             self.in_performance = time.perf_counter() - start

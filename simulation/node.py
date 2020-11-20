@@ -63,8 +63,7 @@ class FogNode(object):
             self.in_msg_history.append(in_msg)
 
             if self.verbose:
-                print("Node {}: Message type {} from {} at {} from {}: {}".format(
-                    self.id, in_msg.msg_type, in_msg.send_id, self.env.now, in_msg.timestamp, in_msg.body))
+                print("Node {}: {}".format(self.id, in_msg))
             # Update gossip
             self.update_gossip(in_msg)
 
@@ -95,7 +94,7 @@ class FogNode(object):
                 if self.verbose:
                     print("Node {} received unknown message type: {}".format(
                         self.id, in_msg.msg_type))
-        
+
     def vivaldi_get_closest_node(self, in_msg):
         """Retrieves the closest node from the network for the requesting client. Decision is based on the given discovery protocol:
         baseline: the optimal discovery as a baseline 
@@ -140,18 +139,17 @@ class FogNode(object):
             self.in_msg_history.append(in_msg)
             sender = self.env.get_participant(in_msg.send_id)
             if self.verbose:
-                print("Node {}: Message type {} from {} at {} from {}: {}".format(
-                    self.id, in_msg.msg_type, in_msg.send_id, self.env.now, in_msg.timestamp, in_msg.body))
+                print("Node {}: {}".format(self.id, in_msg))
             # Update gossip
             self.update_gossip(in_msg)
             # Update Meridian if the sender is a fog Node
             if(isinstance(sender, FogNode)):
-                    self.update_virtual_position(in_msg)
-                    
+                self.update_virtual_position(in_msg)
+
             # Message type 1 = Regular Message from client, just reply
             if(in_msg.msg_type == 1):
                 out_msg = self.env.send_message(
-                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, prev_msg_id=in_msg.id)
+                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response=True, prev_msg_id=in_msg.id)
                 self.out_msg_history.append(out_msg)
 
             # Message type 2 = Node Request -> Trigger search for closest node via event
@@ -163,35 +161,39 @@ class FogNode(object):
                 # If it is an incoming ping from a Fog Node, just reply
                 if(isinstance(sender, FogNode) and not in_msg.prev_msg_id):
                     out_msg = self.env.send_message(
-                        self.id, in_msg.send_id, "Probe reply from Node", gossip=self.gossip, prev_msg_id=in_msg.id, msg_type=3)
+                        self.id, in_msg.send_id, "Probe reply from Node", gossip=self.gossip, response=True, prev_msg_id=in_msg.id, msg_type=3)
                     self.out_msg_history.append(out_msg)
-                
+
                 # If it is an outgoing ping from Client look up the requester and forward the latency to the requester
                 elif(isinstance(sender, MobileClient)):
-                    meridian_ping = next((ping for ping in self.meridian_pings if ping.get('target') == in_msg.send_id), None)
+                    meridian_ping = next((ping for ping in self.meridian_pings if ping.get(
+                        'target') == in_msg.send_id), None)
                     requester = meridian_ping.get('requester')
+                    msg = {'latency': in_msg.latency, 'target': in_msg.send_id}
                     out_msg = self.env.send_message(
-                        self.id, requester, msg = {'latency': in_msg.latency, 'target': in_msg.send_id}, gossip=self.gossip, prev_msg_id=meridian_ping.get('msg.id'), msg_type=4)
+                        self.id, requester, msg= msg, gossip=self.gossip, response=True, prev_msg_id=meridian_ping.get('msg.id'), msg_type=4)
                     self.out_msg_history.append(out_msg)
                     # Remove the ping information as it is no longer needed
                     self.meridian_pings.remove(meridian_ping)
-                    
+
             # Ping Request from other node, to ping the target
             elif(in_msg.msg_type == 4):
                 # Answer from node with ping information to target
-                if(in_msg.prev_msg_id):
-                    target = in_msg.body,get('target')
-                    d_latency = in_msg.body,get('latency')
-                    request = next((request for request in self.meridian_requestsself.meridian_pings if message.get('target') == target), None)
-                    request.get('measure').append({'latency': d_latency, 'member': in_msg.send_id})
+                if(in_msg.response):
+                    target = in_msg.body.get('target')
+                    d_latency = in_msg.body.get('latency')
+                    request = next((request for request in self.meridian_requests if request.get('target') == target), None)
+                    request.get('measures').append(
+                        {'latency': d_latency, 'member': in_msg.send_id})
                 else:
                     # Append ping information to short memory
                     target = in_msg.body.get('target')
-                    self.meridian_pings.append({'msg_id': in_msg.id, 'requester': in_msg.send_id, 'target':target})
+                    self.meridian_pings.append(
+                        {'msg_id': in_msg.id, 'requester': in_msg.send_id, 'target': target})
                     out_msg = self.env.send_message(
-                            self.id, in_msg.body.get('target'), msg = "Ping from Node", gossip=self.gossip, msg_type=3)
+                        self.id, in_msg.body.get('target'), msg="Ping from Node", gossip=self.gossip, msg_type=3)
                     self.out_msg_history.append(out_msg)
-                
+
             else:
                 if self.verbose:
                     print("Node {} received unknown message type: {}".format(
@@ -204,18 +206,20 @@ class FogNode(object):
             target = in_msg.body
             # reversing in_msg_history to automatically find the newest ping
             rev_msg_history = reversed(self.in_msg_history)
-            ping_from_target = next((message for message in rev_msg_history if message.send_id == target and message.msg_type == 3), None)
-            # If there is not ping from the target something logically went wrong and we return
+            ping_from_target = next(
+                (message for message in rev_msg_history if message.send_id == target and message.msg_type == 3), None)
+            orig_msg_id = in_msg.prev_msg_id
+            # If there is no ping from the target something logically went wrong and we return
             if not ping_from_target:
                 return
-            target_latency = last_message_to_target.latency
-            
+            target_latency = ping_from_target.latency
+
         # If the sender of the message is a client, the target is the sender
         if(isinstance(sender, MobileClient)):
             target = in_msg.send_id
             target_latency = in_msg.latency
-        
-        
+            orig_msg_id = in_msg.id
+
         ring_set = self.virtual_position.ring_set
         # Get ring number of the client
         ring_number = ring_set.get_ring_number(target_latency)
@@ -223,25 +227,27 @@ class FogNode(object):
         # Message every member of the same ring as the client with a type 4 message: Ping request to target
         for member in ring.get('members'):
             self.env.send_message(self.id, member.get('id'),
-                                    {'latency': target_latency, 'target': in_msg.send_id}, gossip=self.gossip, msg_type=4)
+                                  {'latency': target_latency, 'target': in_msg.send_id}, gossip=self.gossip, msg_type=4)
         # Start meridian waiting process to collect answers
-        self.meridian_requests.append({'target': target, 'measures':[]})
-        self.env.process(self.await_meridian_pings(target, in_msg.latency))
+        self.meridian_requests.append({'target': target, 'measures': []})
+        self.env.process(self.await_meridian_pings(target, in_msg.latency, orig_msg_id))
 
-    def await_meridian_pings(self, target, d_latency):
+    def await_meridian_pings(self, target, d_latency, orig_msg_id):
         waiting_time = (2*self.virtual_position.beta + 1)*d_latency
         yield self.env.timeout((waiting_time))
-        requests = next((req for req in self.meridian_requests if req.get('target') == target), None)
+        requests = next(
+            (req for req in self.meridian_requests if req.get('target') == target), None)
         if(requests.get('measures')):
             measures = requests.get('measures')
-            best_node = min(measures, key=lambda x:x['latency'])
-            print(best_node)
-            #TODO iteratively find closer node by forwarding
-            
+            best_node = min(measures, key=lambda x: x['latency'])
+            # print("Best node: ", best_node)
+            best_node_id = best_node.get('member')
+            msg = self.env.send_message(self.id, best_node_id, msg = target, gossip=self.gossip, msg_type=2, prev_msg_id=orig_msg_id)
         else:
+            # print("I am the best")
             msg = self.env.send_message(self.id, target,
-                                    self.id, gossip=self.gossip, msg_type=2)
-        
+                                        self.id, gossip=self.gossip, response = True, msg_type=2, prev_msg_id=orig_msg_id)
+
     def probe_network(self):
         """Probing process to continually update the virtual position
 

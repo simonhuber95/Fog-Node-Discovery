@@ -7,7 +7,7 @@ simulation:
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
   max_clients: None
-  latency_threshold: 0.04
+  latency_threshold: 0.08
   roundtrip_threshold: 0.2
   timeout_threshold: 2
 nodes:

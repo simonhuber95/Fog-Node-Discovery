@@ -15,8 +15,9 @@ class ReconnectionRules(object):
             boolean: Whether the latency is lower than the threshold
         """
         latency = self.env.get_latency(send_id, rec_id)
-
-        return True if latency < threshold else False
+        check = True if latency < threshold else False
+        # if not check: print("latency rule failed")
+        return check
 
     def roundtrip_rule(self, out_history, in_history, threshold=1):
         """Roundtrip Rule for client. Checks if the roundtrip rule for the last message with corresponding response 
@@ -30,7 +31,11 @@ class ReconnectionRules(object):
         Returns:
             boolean: Whether the roundtrip time is lower than the threshold
         """
-        last_in_msg = in_history[-1]
+        last_in_msg = next(
+            (message for message in reversed(in_history) if message.msg_type == 1), None)
+        # No task has been sent yet
+        if(not last_in_msg):
+            return True
         out_msg = next(
             (message for message in out_history if message.id == last_in_msg.prev_msg_id), None)
         # Message has not come back so RTT cannot be calculated
@@ -38,7 +43,9 @@ class ReconnectionRules(object):
             return True
 
         roundtrip_time = last_in_msg.rec_timestamp - out_msg.timestamp
-        return True if roundtrip_time < threshold else False
+        check = True if roundtrip_time < threshold else False
+        # if not check: print("Roundtrip rule failed")
+        return check 
 
     def timeout_rule(self, out_history, in_history, threshold=1.5):
         """Timeout Rule for Client. Checks if the time past for a non received answer exceeds the threshold
@@ -53,7 +60,7 @@ class ReconnectionRules(object):
             (message for message in out_history if message.id == last_in_msg.prev_msg_id), None)
         # If Out Message has been sent longer than threshold and no answer is received
         if(not out_msg):
-            return False
+            return True
         
         if(self.env.now - out_msg.timestamp > threshold and not last_in_msg):
             return False
