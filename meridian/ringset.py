@@ -52,11 +52,13 @@ class RingSet(object):
             dict: ring
         """
         # Check if ring_number is int
-        if not isinstance(ring_number, int): 
-            raise TypeError("Expected type: int, received Type: {}".format(type(ring_number)))
+        if not isinstance(ring_number, int):
+            raise TypeError(
+                "Expected type: int, received Type: {}".format(type(ring_number)))
         # Check if ring_number is valid between [1, max_rings]
-        if ring_number < 1 or ring_number > self.max_rings: 
-            raise ValueError('ring_number must be between 1 and {}, received {}'.format(self.max_rings, ring_number))
+        if ring_number < 1 or ring_number > self.max_rings:
+            raise ValueError('ring_number must be between 1 and {}, received {}'.format(
+                self.max_rings, ring_number))
         # Return the ring on the i-1th postition, because list indes start at 0
         if(primary):
             return self.primary_rings[ring_number-1]
@@ -82,16 +84,14 @@ class RingSet(object):
         if(ring.get('frozen')):
             return False
         ring_members = ring.get('members')
-        # Node is not in Ring, so it gets removed from old ring, added the new rind and the oldest ring member is popped
-        if node.get('prev_ring') != ring:
+        # Node is not in Ring, so it gets removed from old ring, added the new ring and the oldest ring member is popped
+        if node.get('prev_ring') != ring_number:
             # Node gets only removed from old ring, if it has an old ring
             if node.get('prev_ring'):
                 # Remove Node from old ring
-                old_ring = self.get_ring(True, node.get('prev_ring'))
-                if old_ring:
-                    success = self.erase_node(node, old_ring)
-                    if not success:
-                        return False
+                success = self.erase_node(node, node.get('prev_ring'))
+                if not success:
+                    return False
             # Check if ring still has space
             if(len(ring_members) < self.k):
                 # Update node with new ring number
@@ -102,7 +102,7 @@ class RingSet(object):
             # Otherwise put node in secondary_ring
             else:
                 # Update node with new ring number
-                node.update({'prev_ring': None})
+                node.update({'prev_ring': ring_number})
                 # Get ring members of secondary ring
                 secondary_ring = self.get_ring(
                     primary=False, ring_number=ring_number)
@@ -115,34 +115,63 @@ class RingSet(object):
             return True
         # Node is already a member of the ring and just needs an update
         else:
-            existing_node = next(
-                (member for member in ring_members if message.id == msg_id), None)
-            existing_node.update({'latency': latency})
-            return True
+            if self.is_member_in_ring(node.get('id'), True, ring_number):
+                existing_node = next(
+                    (member for member in ring_members if member.get('id') == node.get('id')), None)
+                existing_node.update({'latency': node.get('latency')})
+                return True
+                
+            if self.is_member_in_ring(node.get('id'), False, ring_number):
+                secondary_ring_members = self.get_ring(primary=False, ring_number=ring_number).get('members')
+                existing_node = next(
+                    (member for member in secondary_ring_members if member.get('id') == node.get('id')), None)
+                existing_node.update({'latency': node.get('latency')})
+                return True
+            return False
+                
 
     def erase_node(self, node, ring_number):
-        """Erases the given node from the ring and adds a member from the secondary ring if there are any
+        """ If node is member of primary ring the node is erased from it and adds a member from the secondary ring if there are any
+        If Node is member of secondary ring it simply get erased
+
         Args:
             node (dict): the dictionary of the node
             ring_number (number): the ring number
         """
-        # Retrieve primary ring
-        primary_ring = self.get_ring(primary=True, ring_number=ring_number)
-        if primary_ring.get('frozen'):
-            return False
-        # Get index of node in primary_ring
-        index = next((index for (index, member) in enumerate(primary_ring.get('members'))
-                     if member.get('id') == node.get('id')), None)
-        if index:
-            # pop the node from primary ring members
-            primary_ring.get('members').pop(index)
-            # Add first node from same ring level of secondary_ring to primary_ring
+        # If node is member of primary ring delete it from ring and add member from secondary ring
+        if self.is_member_in_ring(node.get('id'), True, ring_number):
+            # Retrieve primary ring
+            primary_ring = self.get_ring(primary=True, ring_number=ring_number)
+            if primary_ring.get('frozen'):
+                return False
+            # Get index of node in primary_ring
+            index = next((index for (index, member) in enumerate(primary_ring.get('members'))
+                          if member.get('id') == node.get('id')), None)
+            if index:
+                # pop the node from primary ring members
+                primary_ring.get('members').pop(index)
+                # Add first node from same ring level of secondary_ring to primary_ring
+                secondary_ring = self.get_ring(
+                    primary=False, ring_number=ring_number)
+                if secondary_ring.get('members'):
+                    new_node = secondary_ring.get('members').pop()
+                    self.insert_node(new_node)
+                return True
+            else:
+                return False
+        # If node is member of secondary ring delete it from ring
+        elif self.is_member_in_ring(node.get('id'), False, ring_number):
+            # Retrieve primary ring
             secondary_ring = self.get_ring(
                 primary=False, ring_number=ring_number)
-            if secondary_ring.get('members'):
-                new_node = secondary_ring.get('members').pop()
-                self.insert_node(new_node)
-            return True
+
+            # Get index of node in primary_ring
+            index = next((index for (index, member) in enumerate(secondary_ring.get('members'))
+                          if member.get('id') == node.get('id')), None)
+            if index:
+                # pop the node from secondaryring members
+                secondary_ring.get('members').pop(index)
+        # Node isn't member of primary or secondary
         else:
             return False
 
@@ -181,7 +210,7 @@ class RingSet(object):
             return len(ring.get('members')) >= self.k
         else:
             return len(ring.get('members')) >= self.l
-            
+
     def is_ring_empty(self, primary, ring_number):
         """Checks if a given ring is empty
 
@@ -238,7 +267,7 @@ class RingSet(object):
 
         secondary_ring = self.get_ring(primary=False, ring_number=ring_number)
         # Exchanging the primary members with the first k secondary members
-        for index in range (self.k):
+        for index in range(self.k):
             if secondary_ring.get('members'):
                 # Pop old primary member
                 primary_ring.get('member').pop()
@@ -246,4 +275,17 @@ class RingSet(object):
                 new_node = secondary_ring.get('members').pop()
                 self.insert_node(new_node)
         return True
-            
+
+    def is_member_in_ring(self, member_id, primary, ring_number):
+        """Checks if member is in the ring
+
+        Args:
+            member_id (ID): ID of the member
+            primary (boolean): True for primary ring, false for secondary ring
+            ring_number (int): Number of the ring
+
+        Returns:
+            boolean: Whether or not the given member_id exists in the ring
+        """
+        member_list = self.get_ring(primary, ring_number).get('members')
+        return any(member.get('id') == member_id for member in member_list)

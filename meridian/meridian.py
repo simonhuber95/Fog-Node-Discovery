@@ -6,8 +6,9 @@ import numpy as np
 import pandas as pd
 from scipy.spatial import ConvexHull
 
+
 class Meridian(object):
-    def __init__(self, id, system_nodes, l = None, alpha=1, s=2, beta=0.5):
+    def __init__(self, id, system_nodes, l=None, alpha=1, s=2, beta=0.5):
         # Radius coefficients
         self.id = id
         self.alpha = alpha
@@ -37,14 +38,14 @@ class Meridian(object):
         for ring_number in range(1, self.ring_set.get_number_of_rings()+1):
             if self.ring_set.eligible_for_replacement(ring_number):
                 eligible_rings.append(ring_number)
-        
+
         if not eligible_rings:
             return False
-        
+
         selected_ring = Random.choice(eligible_rings)
         # swap members of primary ring if there is a replacement in secondary ring
         self.ring_set.swap_ring_members(selected_ring)
-    
+
     def add_node(self, node_id, latency, coordinates):
         """Wrapper function to add a node to the Meridian system
 
@@ -53,16 +54,36 @@ class Meridian(object):
             latency (float): latency of the node in seconds
             coordinates (list): coordinate vector of the Meridian node
         """
-        node_dict = {'id': node_id, 'latency': latency, 'prev_ring': None, 'coordinates': coordinates}
+        prev_ring = None
+        # Check if node is currently member of a primary ring
+        for ring_number in range(1, self.ring_set.get_number_of_rings() + 1):
+            if self.ring_set.is_member_in_ring(node_id, True, ring_number):
+                prev_ring = ring_number
+                break
+
+        if not prev_ring:
+            # Check if node is currently member of a secondary ring
+            for ring_number in range(1, self.ring_set.get_number_of_rings() + 1):
+                if self.ring_set.is_member_in_ring(node_id, False, ring_number):
+                    prev_ring = ring_number
+                    break
+        
+        node_dict = {'id': node_id, 'latency': latency,
+                     'prev_ring': prev_ring, 'coordinates': coordinates}
+        
+        prev_shape = self.get_vector().shape
         self.ring_set.insert_node(node_dict)
-            
-    def get_latency_matrix (self):
+        
+        # if prev_shape != self.get_vector().shape:
+        #     print("We altered the shape", prev_shape, self.get_vector().shape, node_dict)
+
+    def get_latency_matrix(self):
         matrix = np.array()
         for ring in [*self.ring_set.primary_rings, *self.ring_set.secondary_rings]:
             for member in ring.get('members'):
                 matrix.append(member.get('coordinates'))
         return matrix
-            
+
     def get_vector(self):
         """The coordinates of node i consist of the tuple (di1, di2, ..., dik+l), where dii = 0.
 
@@ -70,29 +91,27 @@ class Meridian(object):
             list: The latency vector of the Meridian Node
         """
         data = {}
+        data[self.id] = 0
         for ring in [*self.ring_set.primary_rings, *self.ring_set.secondary_rings]:
             for member in ring.get('members'):
                 data[member.get('id')] = member.get('latency')
-                # ids.append(member.get('id'))
-                # latencies.append(member.get('latency'))
-        # print("data:" ,data)
-        df = pd.DataFrame(data = data, index = [0])
-        # print(df)
+
+        df = pd.DataFrame(data=data, index=[self.id])
         return df
-        
+
     def get_volume(self, latency_matrix):
         hull = ConvexHull(latency_matrix)
         return hull.volume
-        
+
     def calculate_hypervolume(self):
         latency_matrix = self.get_latency_matrix()
         # print(latency_matrix)
-        
+
         gs_matrix = gs(latency_matrix)
         # print(gs_matrix)
-              
+
     def reduce_set_by_n(vector, n):
         return false
-    
+
     def create_latency_matrix(self):
         return false
