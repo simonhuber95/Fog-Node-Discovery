@@ -174,12 +174,13 @@ class RingSet(object):
             # Get index of node in primary_ring
             index = next((index for (index, member) in enumerate(secondary_ring.get('members'))
                           if member.get('id') == node.get('id')), None)
-            if index:
+            if isinstance(index, int):
                 # pop the node from secondaryring members
                 secondary_ring.get('members').pop(index)
                 return True
             else:
-                raise Warning("Removal Failed: No index for secondary ring found")
+                raise Warning(
+                    "Removal Failed: No index for secondary ring found")
                 return False
         # Node isn't member of primary or secondary
         else:
