@@ -137,11 +137,11 @@ class FogNode(object):
         while True:
             in_msg = yield self.msg_pipe.get()
             self.in_msg_history.append(in_msg)
-            
-            if(in_msg.send_id == self.id): 
+
+            if(in_msg.send_id == self.id):
                 print("I received a message from myself: ", in_msg)
                 continue
-            
+
             sender = self.env.get_participant(in_msg.send_id)
             if self.verbose:
                 print("Node {}: {}".format(self.id, in_msg))
@@ -176,7 +176,7 @@ class FogNode(object):
                     requester = meridian_ping.get('requester')
                     msg = {'latency': in_msg.latency, 'target': in_msg.send_id}
                     out_msg = self.env.send_message(
-                        self.id, requester, msg= msg, gossip=self.gossip, response=True, prev_msg_id=meridian_ping.get('msg.id'), msg_type=4)
+                        self.id, requester, msg=msg, gossip=self.gossip, response=True, prev_msg_id=meridian_ping.get('msg.id'), msg_type=4)
                     self.out_msg_history.append(out_msg)
                     # Remove the ping information as it is no longer needed
                     self.meridian_pings.remove(meridian_ping)
@@ -187,7 +187,8 @@ class FogNode(object):
                 if(in_msg.response):
                     target = in_msg.body.get('target')
                     d_latency = in_msg.body.get('latency')
-                    request = next((request for request in self.meridian_requests if request.get('target') == target), None)
+                    request = next((request for request in self.meridian_requests if request.get(
+                        'target') == target), None)
                     request.get('measures').append(
                         {'latency': d_latency, 'member': in_msg.send_id})
                 else:
@@ -195,6 +196,7 @@ class FogNode(object):
                     target = in_msg.body.get('target')
                     self.meridian_pings.append(
                         {'msg_id': in_msg.id, 'requester': in_msg.send_id, 'target': target})
+                    if self.id == in_msg.body.get('target'):
                     out_msg = self.env.send_message(
                         self.id, in_msg.body.get('target'), msg="Ping from Node", gossip=self.gossip, msg_type=3)
                     self.out_msg_history.append(out_msg)
@@ -233,10 +235,11 @@ class FogNode(object):
         for member in ring.get('members'):
             if(member.get('id') != self.id):
                 self.env.send_message(self.id, member.get('id'),
-                                    {'latency': target_latency, 'target': in_msg.send_id}, gossip=self.gossip, msg_type=4)
+                                      {'latency': target_latency, 'target': target}, gossip=self.gossip, msg_type=4)
         # Start meridian waiting process to collect answers
         self.meridian_requests.append({'target': target, 'measures': []})
-        self.env.process(self.await_meridian_pings(target, in_msg.latency, orig_msg_id))
+        self.env.process(self.await_meridian_pings(
+            target, in_msg.latency, orig_msg_id))
 
     def await_meridian_pings(self, target, d_latency, orig_msg_id):
         waiting_time = (2*self.virtual_position.beta + 1)*d_latency
@@ -248,11 +251,12 @@ class FogNode(object):
             best_node = min(measures, key=lambda x: x['latency'])
             # print("Best node: ", best_node)
             best_node_id = best_node.get('member')
-            msg = self.env.send_message(self.id, best_node_id, msg = target, gossip=self.gossip, msg_type=2, prev_msg_id=orig_msg_id)
+            msg = self.env.send_message(
+                self.id, best_node_id, msg=target, gossip=self.gossip, msg_type=2, prev_msg_id=orig_msg_id)
         else:
             # print("I am the best")
             msg = self.env.send_message(self.id, target,
-                                        self.id, gossip=self.gossip, response = True, msg_type=2, prev_msg_id=orig_msg_id)
+                                        self.id, gossip=self.gossip, response=True, msg_type=2, prev_msg_id=orig_msg_id)
 
     def probe_network(self):
         """Probing process to continually update the virtual position
@@ -356,13 +360,14 @@ class FogNode(object):
     def update_virtual_position(self, in_msg):
         if self.discovery_protocol == "baseline":
             return
-        
-        sender_news = next((news for news in in_msg.gossip if news.get('id') == in_msg.send_id), None)
+
+        sender_news = next(
+            (news for news in in_msg.gossip if news.get('id') == in_msg.send_id), None)
         # should not happen but just in case
         if not sender_news:
             print("whooopsies")
             return
-        
+
         virtual_position = sender_news.get('position')
 
         if self.discovery_protocol == "vivaldi":
@@ -377,5 +382,5 @@ class FogNode(object):
                     "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
 
         elif self.discovery_protocol == "meridian":
-            self.virtual_position.add_node(in_msg.send_id, in_msg.latency, virtual_position.get_vector())
-
+            self.virtual_position.add_node(
+                in_msg.send_id, in_msg.latency, virtual_position.get_vector())
