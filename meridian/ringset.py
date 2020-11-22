@@ -91,6 +91,7 @@ class RingSet(object):
                 # Remove Node from old ring
                 success = self.erase_node(node, node.get('prev_ring'))
                 if not success:
+                    print("but without success")
                     return False
             # Check if ring still has space
             if(len(ring_members) < self.k):
@@ -98,6 +99,7 @@ class RingSet(object):
                 node.update({'prev_ring': ring_number})
                 # Add to new ring
                 ring_members.append(node)
+                return True
 
             # Otherwise put node in secondary_ring
             else:
@@ -112,7 +114,7 @@ class RingSet(object):
                 # Erase oldest secondary member if there are more than l members
                 if len(sec_members) >= self.l:
                     sec_members.pop(0)
-            return True
+                return True
         # Node is already a member of the ring and just needs an update
         else:
             if self.is_member_in_ring(node.get('id'), True, ring_number):
@@ -120,15 +122,15 @@ class RingSet(object):
                     (member for member in ring_members if member.get('id') == node.get('id')), None)
                 existing_node.update({'latency': node.get('latency')})
                 return True
-                
+
             if self.is_member_in_ring(node.get('id'), False, ring_number):
-                secondary_ring_members = self.get_ring(primary=False, ring_number=ring_number).get('members')
+                secondary_ring_members = self.get_ring(
+                    primary=False, ring_number=ring_number).get('members')
                 existing_node = next(
                     (member for member in secondary_ring_members if member.get('id') == node.get('id')), None)
                 existing_node.update({'latency': node.get('latency')})
                 return True
             return False
-                
 
     def erase_node(self, node, ring_number):
         """ If node is member of primary ring the node is erased from it and adds a member from the secondary ring if there are any
@@ -143,11 +145,12 @@ class RingSet(object):
             # Retrieve primary ring
             primary_ring = self.get_ring(primary=True, ring_number=ring_number)
             if primary_ring.get('frozen'):
+                raise Warning("Removal Failed: Primary Ring is frozen")
                 return False
             # Get index of node in primary_ring
             index = next((index for (index, member) in enumerate(primary_ring.get('members'))
                           if member.get('id') == node.get('id')), None)
-            if index:
+            if isinstance(index, int):
                 # pop the node from primary ring members
                 primary_ring.get('members').pop(index)
                 # Add first node from same ring level of secondary_ring to primary_ring
@@ -155,10 +158,13 @@ class RingSet(object):
                     primary=False, ring_number=ring_number)
                 if secondary_ring.get('members'):
                     new_node = secondary_ring.get('members').pop()
-                    self.insert_node(new_node)
+                    primary_ring.get('members').append(new_node)
                 return True
             else:
+                raise Warning(
+                    "Removal Failed: No index for primary ring found")
                 return False
+
         # If node is member of secondary ring delete it from ring
         elif self.is_member_in_ring(node.get('id'), False, ring_number):
             # Retrieve primary ring
@@ -168,11 +174,16 @@ class RingSet(object):
             # Get index of node in primary_ring
             index = next((index for (index, member) in enumerate(secondary_ring.get('members'))
                           if member.get('id') == node.get('id')), None)
-            if index:
+            if isinstance(index, int):
                 # pop the node from secondaryring members
                 secondary_ring.get('members').pop(index)
+                return True
+            else:
+                raise Warning("Removal Failed: No index for secondary ring found")
+                return False
         # Node isn't member of primary or secondary
         else:
+            raise Warning("Node isnt member of any ring")
             return False
 
     def freeze_ring(self, ring_number):

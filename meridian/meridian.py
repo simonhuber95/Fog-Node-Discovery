@@ -67,15 +67,10 @@ class Meridian(object):
                 if self.ring_set.is_member_in_ring(node_id, False, ring_number):
                     prev_ring = ring_number
                     break
-        
+
         node_dict = {'id': node_id, 'latency': latency,
                      'prev_ring': prev_ring, 'coordinates': coordinates}
-        
-        prev_shape = self.get_vector().shape
         self.ring_set.insert_node(node_dict)
-        
-        # if prev_shape != self.get_vector().shape:
-        #     print("We altered the shape", prev_shape, self.get_vector().shape, node_dict)
 
     def get_latency_matrix(self):
         matrix = np.array()

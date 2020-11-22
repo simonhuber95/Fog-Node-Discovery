@@ -196,7 +196,6 @@ class FogNode(object):
                     target = in_msg.body.get('target')
                     self.meridian_pings.append(
                         {'msg_id': in_msg.id, 'requester': in_msg.send_id, 'target': target})
-                    if self.id == in_msg.body.get('target'):
                     out_msg = self.env.send_message(
                         self.id, in_msg.body.get('target'), msg="Ping from Node", gossip=self.gossip, msg_type=3)
                     self.out_msg_history.append(out_msg)
