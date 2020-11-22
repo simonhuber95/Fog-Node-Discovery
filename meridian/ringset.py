@@ -174,7 +174,7 @@ class RingSet(object):
             # Get index of node in primary_ring
             index = next((index for (index, member) in enumerate(secondary_ring.get('members'))
                           if member.get('id') == node.get('id')), None)
-            if isinstance(index, int):
+            if index:
                 # pop the node from secondaryring members
                 secondary_ring.get('members').pop(index)
                 return True
