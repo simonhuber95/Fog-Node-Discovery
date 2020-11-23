@@ -1,6 +1,6 @@
 import math
 from .ringset import RingSet
-from .gram_schmidt import gs
+from .gram_schmidt import gram_schmidt
 from random import Random
 import numpy as np
 import pandas as pd
@@ -13,6 +13,7 @@ class Meridian(object):
         self.id = id
         self.alpha = alpha
         self.s = s
+        self.system_nodes = system_nodes
         # Acceptance threshold
         self.beta = beta
         # Amount of members per primary ring
@@ -33,18 +34,32 @@ class Meridian(object):
         Returns:
             boolean: Whether or not the action was succesful
         """
-        # Find all full primary rings with non empty secondaries
-        eligible_rings = []
-        for ring_number in range(1, self.ring_set.get_number_of_rings()+1):
-            if self.ring_set.eligible_for_replacement(ring_number):
-                eligible_rings.append(ring_number)
+        # ensure all nodes in the system have a full vector or the same vector as self
+        for ring_number in range(1, self.max_rings+1):
+            latency_matrix = self.get_latency_matrix(ring_number)
+            # Ensure there are more than k members in the ring
+            if (latency_matrix.shape[0] <= self.k and latency_matrix.shape[1] <= self.k):
+                # raise Warning("Latency matrix has wrong shape, cannot perform ring replacement. Expected shape {} or bigger actual shape {}".format((self.k + 1, self.k + 1), latency_matrix.shape))
+                continue
+            # Ensure matrix is square
+            if latency_matrix.shape[0] != latency_matrix.shape[1]:
+                print("Latency matrix is not squared", latency_matrix.shape)
+                continue
+            # Reduce latency matrix to k elements, therefore we perform n = elements in matrix - k reduction steps
+            new_primaries, new_secondaries = self.reduce_set_by_n(
+                latency_matrix, n=latency_matrix.shape[0] - self.k)
+            # Get all the primary members with the IDs and put them as members
+            new_prim_members = []
+            for member in new_primaries:
+                 new_prim_members.append(self.ring_set.get_member(member))
+            self.ring_set.get_ring(True, ring_number)['members'] = new_prim_members
+            # Get all the secondary members with the IDs and put them as members
+            new_second_members = []
+            for member in new_secondaries :
+                 new_second_members.append(self.ring_set.get_member(member))
+            self.ring_set.get_ring(False, ring_number)['members'] = new_second_members
+            
 
-        if not eligible_rings:
-            return False
-
-        selected_ring = Random.choice(eligible_rings)
-        # swap members of primary ring if there is a replacement in secondary ring
-        self.ring_set.swap_ring_members(selected_ring)
 
     def add_node(self, node_id, latency, coordinates):
         """Wrapper function to add a node to the Meridian system
@@ -73,15 +88,21 @@ class Meridian(object):
         self.ring_set.insert_node(node_dict)
 
     def update_meridian(self, news):
-        self.ring_set.update_coordinates(news.get('id'), news.get('position').get_vector())
+        self.ring_set.update_coordinates(
+            news.get('id'), news.get('position').get_vector())
 
-    def get_latency_matrix(self):
+    def get_latency_matrix(self, ring_number):
         df = self.get_vector()
-        for ring in [*self.ring_set.primary_rings, *self.ring_set.secondary_rings]:
-            for member in ring.get('members'):
-                vector = member.get('coordinates')
-                df = df.append(vector)
-        return df
+        for ring in [self.ring_set.get_ring(True, ring_number), self.ring_set.get_ring(False, ring_number)]:
+            if ring.get('members'):
+                for member in ring.get('members'):
+                    vector = member.get('coordinates')
+                    df = df.append(vector)
+        indices = df.index.values.tolist()
+        columns = df.columns.values.tolist()
+        missing = [i for i in columns if i not in indices]
+        reduced_df = df.drop(columns=missing)
+        return reduced_df
 
     def get_vector(self):
         """The coordinates of node i consist of the tuple (di1, di2, ..., dik+l), where dii = 0.
@@ -98,19 +119,46 @@ class Meridian(object):
         df = pd.DataFrame(data=data, index=[self.id])
         return df
 
-    def get_volume(self, latency_matrix):
-        hull = ConvexHull(latency_matrix)
-        return hull.volume
+    def calculate_hypervolume(self, latency_matrix):
+        # gs_matrix is the latency_matrix where every row subtracts the last row in the matrix (and the last row is all 0)
+        # Don't ask me why, thats how the original C++ code is: https://github.com/infinity0/libMeridian/blob/master/Query.cpp
+        gs_matrix = latency_matrix
+        rows = gs_matrix.index.values.tolist()
+        for row in rows:
+            gs_matrix.loc[row] = gs_matrix.loc[row] - gs_matrix.loc[rows[-1]]
+        gs_matrix = gram_schmidt(gs_matrix)
+        # Now we calculate the dot product of the gs_matrix and the latency_matrix(transposed)
+        dot_matrix = np.matmul(gs_matrix, latency_matrix.transpose())
+        # Drop them last column for reasons
+        dot_matrix = dot_matrix.drop(dot_matrix.columns[-1], axis=1)
+        # And finally calculate the hypervolume
+        hull = ConvexHull(dot_matrix)
+        hv = hull.volume
+        return hv
 
-    def calculate_hypervolume(self):
-        latency_matrix = self.get_latency_matrix()
-        # print(latency_matrix)
-
-        gs_matrix = gs(latency_matrix)
-        # print(gs_matrix)
-
-    def reduce_set_by_n(vector, n):
-        return false
+    def reduce_set_by_n(self, latency_matrix, n):
+        # Go over n reducing steps
+        latency_matrix = latency_matrix
+        dropped_members = []
+        for i in range(n):
+            # Finding the "worst" member in the matrix
+            # Meaning we calculate the hypervolume without the member for each member in the ring_number
+            # The iteration with the highest hypervolume marks the "worst" member as the member matters the least for our HV
+            worst_member = None
+            maxHV = 0
+            for member in latency_matrix.columns.values.tolist():
+                # Remove member from latency matrix by dropping both its column and row
+                curr_lm = latency_matrix.drop(columns = member, index = member) 
+                hv = self.calculate_hypervolume(curr_lm)
+                if(hv>maxHV):
+                    maxHV = hv
+                    worst_member = member
+            
+            # remove the member from the latency matrix
+            latency_matrix = latency_matrix.drop(columns = worst_member, index = worst_member)
+            dropped_members.append(worst_member)
+        new_primaries = latency_matrix.index.values.tolist()
+        return new_primaries, dropped_members         
 
     def create_latency_matrix(self):
         return false

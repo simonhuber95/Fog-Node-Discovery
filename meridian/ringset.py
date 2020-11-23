@@ -90,7 +90,6 @@ class RingSet(object):
                 # Remove Node from old ring
                 success = self.erase_node(node, node.get('prev_ring'))
                 if not success:
-                    print("but without success")
                     return False
             # Check if ring still has space
             if(len(ring_members) < self.k):
@@ -316,6 +315,15 @@ class RingSet(object):
             return my_member
         else:
             return None
+    
+    def get_all_members(self):
+        
+        rings = [ring for ring in [*self.primary_rings, *self.secondary_rings] if len(ring.get('members'))>0]
+        # Get all the members from the rings
+        members_list = [ring.get('members') for ring in rings]
+        # Flatten the list
+        members_list = [item for sublist in members_list for item in sublist]
+        return members_list
     
     def update_coordinates(self, member_id, coordinates):
         member = self.get_member(member_id)

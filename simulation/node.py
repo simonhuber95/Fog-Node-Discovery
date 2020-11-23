@@ -43,6 +43,7 @@ class FogNode(object):
             self.connect_process = env.process(self.vivaldi_connect())
         elif(discovery_protocol == "meridian"):
             self.connect_process = env.process(self.meridian_connect())
+            self.ring_management = env.process(self.meridian_ring_management(10))
         self.probe_network_process = env.process(self.probe_network())
         if self.verbose:
             print("Fog Node {} active at x:{}, y: {}".format(
@@ -207,10 +208,6 @@ class FogNode(object):
 
     def meridian_get_closest_node(self, in_msg):
         sender = self.env.get_participant(in_msg.send_id)
-        
-        if round(self.env.now) == 10: 
-            lat_mat= self.get_virtual_position().get_latency_matrix()
-            lat_mat.to_csv("latency_matrix.csv")
         # If sender of the Message is another node we iniatiate the search process with the targets last ping
         if(isinstance(sender, FogNode)):
             target = in_msg.body
@@ -260,6 +257,11 @@ class FogNode(object):
             # print("I am the best")
             msg = self.env.send_message(self.id, target,
                                         self.id, gossip=self.gossip, response=True, msg_type=2, prev_msg_id=orig_msg_id)
+
+    def meridian_ring_management(self, period):
+        while True:
+            yield self.env.timeout(period)
+            self.virtual_position.perform_ring_management()
 
     def probe_network(self):
         """Probing process to continually update the virtual position
