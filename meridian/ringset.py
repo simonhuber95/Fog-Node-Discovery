@@ -39,7 +39,6 @@ class RingSet(object):
         for i in range(1, self.max_rings + 1):
             if (self.alpha * self.s**(i-1)) <= latency < (self.alpha * self.s**i):
                 return i
-        print(latency)
 
     def get_ring(self, primary, ring_number):
         """Gets the corresponding ring from the rings list
@@ -120,7 +119,8 @@ class RingSet(object):
             if self.is_member_in_ring(node.get('id'), True, ring_number):
                 existing_node = next(
                     (member for member in ring_members if member.get('id') == node.get('id')), None)
-                existing_node.update({'latency': node.get('latency')})
+                existing_node.update({'latency': node.get(
+                    'latency'), 'coordinates': node.get('coordinates')})
                 return True
 
             if self.is_member_in_ring(node.get('id'), False, ring_number):
@@ -128,7 +128,8 @@ class RingSet(object):
                     primary=False, ring_number=ring_number).get('members')
                 existing_node = next(
                     (member for member in secondary_ring_members if member.get('id') == node.get('id')), None)
-                existing_node.update({'latency': node.get('latency')})
+                existing_node.update({'latency': node.get(
+                    'latency'), 'coordinates': node.get('coordinates')})
                 return True
             return False
 
@@ -301,3 +302,23 @@ class RingSet(object):
         """
         member_list = self.get_ring(primary, ring_number).get('members')
         return any(member.get('id') == member_id for member in member_list)
+
+    def get_member(self, member_id):
+        # Get all the rings with members in it
+        rings = [ring for ring in [*self.primary_rings, *self.secondary_rings] if len(ring.get('members'))>0]
+        # Get all the members from the rings
+        members_list = [ring.get('members') for ring in rings]
+        # Flatten the list
+        members_list = [item for sublist in members_list for item in sublist]
+        if members_list:
+            # Get the member
+            my_member = next((member for member in members_list if member.get('id') == member_id), None)
+            return my_member
+        else:
+            return None
+    
+    def update_coordinates(self, member_id, coordinates):
+        member = self.get_member(member_id)
+        if member:
+            member.update({'coordinates': coordinates})
+

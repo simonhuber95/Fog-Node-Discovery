@@ -72,12 +72,16 @@ class Meridian(object):
                      'prev_ring': prev_ring, 'coordinates': coordinates}
         self.ring_set.insert_node(node_dict)
 
+    def update_meridian(self, news):
+        self.ring_set.update_coordinates(news.get('id'), news.get('position').get_vector())
+
     def get_latency_matrix(self):
-        matrix = np.array()
+        df = self.get_vector()
         for ring in [*self.ring_set.primary_rings, *self.ring_set.secondary_rings]:
             for member in ring.get('members'):
-                matrix.append(member.get('coordinates'))
-        return matrix
+                vector = member.get('coordinates')
+                df = df.append(vector)
+        return df
 
     def get_vector(self):
         """The coordinates of node i consist of the tuple (di1, di2, ..., dik+l), where dii = 0.

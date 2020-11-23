@@ -207,6 +207,10 @@ class FogNode(object):
 
     def meridian_get_closest_node(self, in_msg):
         sender = self.env.get_participant(in_msg.send_id)
+        
+        if round(self.env.now) == 10: 
+            lat_mat= self.get_virtual_position().get_latency_matrix()
+            lat_mat.to_csv("latency_matrix.csv")
         # If sender of the Message is another node we iniatiate the search process with the targets last ping
         if(isinstance(sender, FogNode)):
             target = in_msg.body
@@ -347,7 +351,9 @@ class FogNode(object):
                 elif own_news["timestamp"] < news["timestamp"]:
                     own_news.update(
                         {"position": self.get_virtual_position(), "timestamp": self.env.now})
-
+                    if(self.discovery_protocol == "meridian" and news.get('type') == FogNode):
+                        self.virtual_position.update_meridian(news)
+            
     def init_virtual_position(self, discovery_protocol):
         if discovery_protocol == "baseline":
             return None
