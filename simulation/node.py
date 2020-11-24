@@ -43,7 +43,8 @@ class FogNode(object):
             self.connect_process = env.process(self.vivaldi_connect())
         elif(discovery_protocol == "meridian"):
             self.connect_process = env.process(self.meridian_connect())
-            self.ring_management = env.process(self.meridian_ring_management(10))
+            self.ring_management = env.process(
+                self.meridian_ring_management(10))
         self.probe_network_process = env.process(self.probe_network())
         if self.verbose:
             print("Fog Node {} active at x:{}, y: {}".format(
@@ -258,10 +259,12 @@ class FogNode(object):
             msg = self.env.send_message(self.id, target,
                                         self.id, gossip=self.gossip, response=True, msg_type=2, prev_msg_id=orig_msg_id)
 
-    def meridian_ring_management(self, period):
+    def meridian_ring_management(self, period = 30):
+        # Startup timeout is random so nodes do the ring management at different timesteps
+        yield self.env.timeout(Random().randint(10, 20) + Random().random())
         while True:
-            yield self.env.timeout(period)
             self.virtual_position.perform_ring_management()
+            yield self.env.timeout(period)
 
     def probe_network(self):
         """Probing process to continually update the virtual position
@@ -355,7 +358,7 @@ class FogNode(object):
                         {"position": self.get_virtual_position(), "timestamp": self.env.now})
                     if(self.discovery_protocol == "meridian" and news.get('type') == FogNode):
                         self.virtual_position.update_meridian(news)
-            
+
     def init_virtual_position(self, discovery_protocol):
         if discovery_protocol == "baseline":
             return None

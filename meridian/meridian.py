@@ -36,9 +36,10 @@ class Meridian(object):
         """
         # ensure all nodes in the system have a full vector or the same vector as self
         for ring_number in range(1, self.max_rings+1):
+            self.ring_set.freeze_ring(ring_number)
             latency_matrix = self.get_latency_matrix(ring_number)
             # Ensure there are more than k members in the ring
-            if (latency_matrix.shape[0] <= self.k and latency_matrix.shape[1] <= self.k):
+            if (latency_matrix.shape[0] <= self.k + 1 and latency_matrix.shape[1] <= self.k + 1):
                 # raise Warning("Latency matrix has wrong shape, cannot perform ring replacement. Expected shape {} or bigger actual shape {}".format((self.k + 1, self.k + 1), latency_matrix.shape))
                 continue
             # Ensure matrix is square
@@ -47,19 +48,29 @@ class Meridian(object):
                 continue
             # Reduce latency matrix to k elements, therefore we perform n = elements in matrix - k reduction steps
             new_primaries, new_secondaries = self.reduce_set_by_n(
-                latency_matrix, n=latency_matrix.shape[0] - self.k)
+                latency_matrix, n=latency_matrix.shape[0] - 1 - self.k)
             # Get all the primary members with the IDs and put them as members
             new_prim_members = []
-            for member in new_primaries:
-                 new_prim_members.append(self.ring_set.get_member(member))
-            self.ring_set.get_ring(True, ring_number)['members'] = new_prim_members
+            for prim_id in new_primaries:
+                prim_member = self.ring_set.get_member(prim_id)
+                if not prim_member:
+                    print("primary member not found", prim_id)
+                new_prim_members.append(prim_member)
+
             # Get all the secondary members with the IDs and put them as members
             new_second_members = []
-            for member in new_secondaries :
-                 new_second_members.append(self.ring_set.get_member(member))
-            self.ring_set.get_ring(False, ring_number)['members'] = new_second_members
-            
+            for sec_id in new_secondaries:
+                sec_member = self.ring_set.get_member(sec_id)
+                if not sec_member:
+                    print("secondary member not found", sec_id)
+                new_second_members.append(sec_member)
 
+            # Set new primary and secondary members
+            self.ring_set.get_ring(True, ring_number)[
+                'members'] = new_prim_members
+            self.ring_set.get_ring(False, ring_number)[
+                'members'] = new_second_members
+            self.ring_set.unfreeze_ring(ring_number)
 
     def add_node(self, node_id, latency, coordinates):
         """Wrapper function to add a node to the Meridian system
@@ -102,6 +113,7 @@ class Meridian(object):
         columns = df.columns.values.tolist()
         missing = [i for i in columns if i not in indices]
         reduced_df = df.drop(columns=missing)
+
         return reduced_df
 
     def get_vector(self):
@@ -147,18 +159,21 @@ class Meridian(object):
             worst_member = None
             maxHV = 0
             for member in latency_matrix.columns.values.tolist():
+                if member == self.id:
+                    continue
                 # Remove member from latency matrix by dropping both its column and row
-                curr_lm = latency_matrix.drop(columns = member, index = member) 
+                curr_lm = latency_matrix.drop(columns=member, index=member)
                 hv = self.calculate_hypervolume(curr_lm)
-                if(hv>maxHV):
+                if(hv > maxHV):
                     maxHV = hv
                     worst_member = member
-            
-            # remove the member from the latency matrix
-            latency_matrix = latency_matrix.drop(columns = worst_member, index = worst_member)
-            dropped_members.append(worst_member)
-        new_primaries = latency_matrix.index.values.tolist()
-        return new_primaries, dropped_members         
 
-    def create_latency_matrix(self):
-        return false
+            # remove the member from the latency matrix
+            latency_matrix = latency_matrix.drop(
+                columns=worst_member, index=worst_member)
+            if worst_member:
+                dropped_members.append(worst_member)
+        new_primaries = latency_matrix.index.values.tolist()
+        # Remove self out of the primary list
+        new_primaries.remove(self.id)
+        return new_primaries, dropped_members

@@ -99,7 +99,9 @@ print("Active clients: ", len(env.clients))
 # Run Simulation
 env.run(until=config["simulation"]["runtime"])
 # Printing metrics
-print(Metrics(env).all())
+metrics = Metrics(env).all()
+metrics.to_csv("Metrics_{}.csv".format(config["simulation"]["discovery_protocol"], ))
+print(metrics)
 
 Metrics(env).collect_error_over_time().plot()
 # Metrics(env).collect_opt_choice_over_time().plot()
