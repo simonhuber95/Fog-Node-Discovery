@@ -5,6 +5,7 @@ from random import Random
 import numpy as np
 import pandas as pd
 from scipy.spatial import ConvexHull
+import warnings
 
 
 class Meridian(object):
@@ -38,13 +39,16 @@ class Meridian(object):
         for ring_number in range(1, self.max_rings+1):
             self.ring_set.freeze_ring(ring_number)
             latency_matrix = self.get_latency_matrix(ring_number)
-            # Ensure there are more than k members in the ring
+            # Ensure there are no NaN values in the Matrix
+            if latency_matrix.isnull().values.any():
+                warnings.warn("Latency Matrix contains NaN values")
+            # Ensure there are more than k members in the rin
             if (latency_matrix.shape[0] <= self.k + 1 and latency_matrix.shape[1] <= self.k + 1):
-                # raise Warning("Latency matrix has wrong shape, cannot perform ring replacement. Expected shape {} or bigger actual shape {}".format((self.k + 1, self.k + 1), latency_matrix.shape))
+                # warnings.warn("Latency matrix has wrong shape, cannot perform ring replacement. Expected shape {} or bigger actual shape {}".format((self.k + 1, self.k + 1), latency_matrix.shape))
                 continue
             # Ensure matrix is square
             if latency_matrix.shape[0] != latency_matrix.shape[1]:
-                print("Latency matrix is not squared", latency_matrix.shape)
+                warnings.warn("Latency matrix is not squared", latency_matrix.shape)
                 continue
             # Reduce latency matrix to k elements, therefore we perform n = elements in matrix - k reduction steps
             new_primaries, new_secondaries = self.reduce_set_by_n(
@@ -158,15 +162,22 @@ class Meridian(object):
             # The iteration with the highest hypervolume marks the "worst" member as the member matters the least for our HV
             worst_member = None
             maxHV = 0
-            for member in latency_matrix.columns.values.tolist():
-                if member == self.id:
-                    continue
-                # Remove member from latency matrix by dropping both its column and row
-                curr_lm = latency_matrix.drop(columns=member, index=member)
-                hv = self.calculate_hypervolume(curr_lm)
-                if(hv > maxHV):
-                    maxHV = hv
-                    worst_member = member
+            # Only do reducing steps if Dataframe does not contain NaN values
+            if not latency_matrix.isnull().values.any():
+                for member in latency_matrix.columns.values.tolist():
+                    if member == self.id:
+                        continue
+                    # Remove member from latency matrix by dropping both its column and row
+                    curr_lm = latency_matrix.drop(columns=member, index=member)
+                    hv = self.calculate_hypervolume(curr_lm)
+                    if(hv > maxHV):
+                        maxHV = hv
+                        worst_member = member
+            # If it contains NaN values we delete that member
+            else:
+                for member in latency_matrix.columns.values.tolist():
+                    if latency_matrix[member].isnull().values.any():
+                        worst_member = member
 
             # remove the member from the latency matrix
             latency_matrix = latency_matrix.drop(

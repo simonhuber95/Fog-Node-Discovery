@@ -1,15 +1,15 @@
 simulation:
   runtime: 600 # in seconds
-  area: 1100 # x and y translation in meter of random selected area
+  area: 1500 # x and y translation in meter of random selected area
   area_selection: center # random or center
   verbose: False
   discovery_protocol: meridian # baseline, vivaldi, meridian
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
   max_clients: None
-  latency_threshold: 0.08
+  latency_threshold: 0.06
   roundtrip_threshold: 0.2
-  timeout_threshold: 2
+  timeout_threshold: 1
 nodes:
   path: data/cell_towers/cell_towers.shp
   min_nodes: 1

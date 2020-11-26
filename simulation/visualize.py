@@ -88,14 +88,16 @@ def visualize_node_performance(env, runtime):
     plt.ion()
     hl, = plt.plot([], [])
     plt.xlim(0, runtime)
-    plt.ylim(0, 0.02)
+    plt.ylim(0, 0.05)
     plt.draw()
     while True:
         performance_i = [
-            node["obj"].discovery_performance for node in env.nodes]
+            node["obj"].await_performance for node in env.nodes]
         hl.set_xdata(np.append(hl.get_xdata(), env.now))
         hl.set_ydata(np.append(hl.get_ydata(), np.nanmean(performance_i)))
 
         plt.draw()
         plt.pause(0.001)
         yield env.timeout(1)
+
+    

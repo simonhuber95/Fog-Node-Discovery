@@ -32,7 +32,7 @@ class RingSet(object):
         latency = latency * 1000
         # High latencies are put in outermost ring
         if latency > self.alpha*self.s**self.max_rings:
-            return max_rings
+            return self.max_rings
         # negative of low latencies are put in innermost ring
         if latency < self.alpha:
             return 1

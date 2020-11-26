@@ -91,16 +91,13 @@ print("Active clients: ", len(env.clients))
 # viz_process1 = env.process(visualize_vivaldi(env))
 # vz_process2 = env.process(visualize_movements(env))
 # vz_process3 = env.process(visualize_client_performance(env, config["simulation"]["runtime"]))
-# vz_process4 = env.process(visualize_node_performance(env, config["simulation"]["runtime"]))
-
-# add dummy
-# dummy = Dummy(env)
+vz_process4 = env.process(visualize_node_performance(env, config["simulation"]["runtime"]))
 
 # Run Simulation
 env.run(until=config["simulation"]["runtime"])
 # Printing metrics
 metrics = Metrics(env).all()
-metrics.to_csv("Metrics_{}.csv".format(config["simulation"]["discovery_protocol"], ))
+metrics.to_csv("Metrics_{}.csv".format(config["simulation"]["discovery_protocol"]))
 print(metrics)
 
 Metrics(env).collect_error_over_time().plot()

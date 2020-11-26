@@ -14,7 +14,7 @@ class FogEnvironment(Environment):
         self.clients = []
         self.nodes = []
         self.boundaries = tuple()
-        self.messages = []
+        # self.messages = []
         self.monitor_process = self.process(self.monitor())
 
     def get_participant(self, id):
@@ -31,29 +31,26 @@ class FogEnvironment(Environment):
         """
         return random.choice(self.nodes)["id"]
 
-    def send_message(self, send_id, rec_id, msg, gossip, response = False, msg_type=1, prev_msg_id=None):
+    def send_message(self, send_id, rec_id, msg, gossip, response=False, msg_type=1, prev_msg=None):
         """
         Parameter send_id as string: ID of sender
         Paramater rec_id as string: ID of recipient
         Parameter msg as string: Message to be send
         Parameter gossip as dict: Gossip of all virtual coordinates
         Parameter msg_type as int *optional: type of message -> 1: regular message (default), 2: Closest node request, 3: Node discovery
-        Parameter prev_msg_id as uuid *optional: unique id of the predecessing message
+        Parameter prev_msg as Message *optional: the predecessing Message
         """
         # Create new message ID if none is given
         msg_id = uuid.uuid4()
         # get the latency between the two participants
         # Assemble message
         message = Message(self, msg_id, send_id, rec_id, msg,
-                          msg_type, gossip, response = response, prev_msg_id=prev_msg_id)
+                          msg_type, gossip, response=response, prev_msg=prev_msg)
         # Send message to receiver
         delivery_process = self.process(self.message_delivery(message))
-        # Put message in gloabal history
-        self.messages.append(message)
-        # limiting the message storage
-        if(len(self.messages) > 5000):
-            self.messages.pop(0)
-        # # Return messsage to sender to put it into the history
+        # Put message in gloabal history, gets cleared every timestep by the monitor process
+        # self.messages.append(message)
+        # Return messsage to sender to put it into the history
         return message
 
     def message_delivery(self, message):
@@ -173,9 +170,17 @@ class FogEnvironment(Environment):
     def monitor(self):
         runtime = self.config["simulation"]["runtime"]
         modulus = runtime / 10
+        timestamp = 0
         while(True):
-            if(self.now == 0):
-                print("Runtime: {}/{}".format(self.now, runtime))
-            elif(self.now % modulus == 0):
-                print("Runtime: {}/{}".format(self.now, runtime))
+            
+            # if(self.now == 0):
+            #     print("Runtime: {}/{}".format(self.now, runtime))
+            # elif(self.now % modulus == 0):
+            #     print("Runtime: {}/{}".format(self.now, runtime))
+            duration = round(time.perf_counter() - timestamp,2)
+            timestamp = time.perf_counter()
+            # print("Runtime: {}/{} in {} seconds with {} messages".format(self.now, runtime, duration, len(self.messages)))
+            print("Runtime: {}/{} in {} seconds with".format(self.now, runtime, duration))
+            # clear message history
+             #self.messages = []
             yield self.timeout(1)

@@ -37,7 +37,7 @@ class ReconnectionRules(object):
         if(not last_in_msg):
             return True
         out_msg = next(
-            (message for message in out_history if message.id == last_in_msg.prev_msg_id), None)
+            (message for message in out_history if message.id == last_in_msg.prev_msg.id), None)
         # Message has not come back so RTT cannot be calculated
         if(not out_msg):
             return True
@@ -57,11 +57,11 @@ class ReconnectionRules(object):
         """
         last_in_msg = in_history[-1]
         out_msg = next(
-            (message for message in out_history if message.id == last_in_msg.prev_msg_id), None)
-        # If Out Message has been sent longer than threshold and no answer is received
+            (message for message in out_history if last_in_msg.prev_msg and message.id == last_in_msg.prev_msg.id), None)
+        # Message was no respone, so we dont care
         if(not out_msg):
             return True
-        
+        # If Out Message has been sent longer than threshold and no answer is received
         if(self.env.now - out_msg.timestamp > threshold and not last_in_msg):
             return False
         else:

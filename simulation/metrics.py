@@ -86,7 +86,7 @@ class Metrics(object):
             filtered_in_history = list(filter(lambda message: message.msg_type != 3, client["obj"].in_msg_history))
             filtered_out_history = list(filter(lambda message: message.msg_type != 3, client["obj"].out_msg_history))
             in_ids = list(
-                map(lambda msg: msg.prev_msg_id, filtered_in_history))
+                map(lambda msg: msg.prev_msg.id, filtered_in_history))
             match_ids = list(
                 filter(lambda msg: msg.id not in in_ids, filtered_out_history))
             data.append(
@@ -125,10 +125,10 @@ class Metrics(object):
             # counter for chosing the optimal node
             opt_choice = 0
             for in_msg in client["obj"].in_msg_history:
-                if(in_msg.prev_msg_id and in_msg.msg_type == 1):
+                if(in_msg.prev_msg and in_msg.msg_type == 1):
                     # Retrieve request for the incoming response
                     out_msg = next(
-                        (message for message in client["obj"].out_msg_history if message.id == in_msg.prev_msg_id), None)
+                        (message for message in client["obj"].out_msg_history if message.id == in_msg.prev_msg.id), None)
                     y_true.append(out_msg.latency + in_msg.latency)
                     y_opt.append(out_msg.opt_latency + in_msg.opt_latency)
                     # Counter of optimal node choice

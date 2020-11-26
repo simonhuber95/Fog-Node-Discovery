@@ -151,7 +151,7 @@ class MobileClient(object):
 
             # Updating the virtual Position for every incoming message which is a response in the following
             # Checking if incoming message is a response on which a rtt can be calculated and virtual position is updated
-            if(in_msg.prev_msg_id):
+            if(in_msg.prev_msg):
                 self.update_virtual_position(in_msg)
             # Extracting message Type
             msg_type = in_msg.msg_type
@@ -172,7 +172,7 @@ class MobileClient(object):
                 if self.verbose:
                     print("Client {}: {}".format(self.id, in_msg))
                 out_msg = self.env.send_message(
-                    self.id, in_msg.send_id, "Client {} response to ping".format(self.id), gossip=self.gossip, response = True, msg_type = 3)
+                    self.id, in_msg.send_id, "Client {} response to ping".format(self.id), gossip=self.gossip, response = True, msg_type = 3, prev_msg = in_msg)
                 self.out_msg_history.append(out_msg)
 
             self.in_performance = time.perf_counter() - start
@@ -308,7 +308,7 @@ class MobileClient(object):
         """
         msg_id = in_msg.id
         out_msg = next(
-            (message for message in self.out_msg_history if message.id == in_msg.prev_msg_id), None)
+            (message for message in self.out_msg_history if message.id == in_msg.prev_msg.id), None)
         rtt = self.env.now - out_msg.timestamp
         return rtt
 

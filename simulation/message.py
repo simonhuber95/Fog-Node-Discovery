@@ -2,7 +2,7 @@ import time
 from .node import FogNode
 
 class Message(object):
-    def __init__(self, env, msg_id, send_id, rec_id, body, msg_type, gossip, response = False, prev_msg_id=None):
+    def __init__(self, env, msg_id, send_id, rec_id, body, msg_type, gossip, response = False, prev_msg=None):
         
         self.env = env
         self.id = msg_id
@@ -14,7 +14,7 @@ class Message(object):
         self.latency = self.env.get_latency(send_id, rec_id)
         self.gossip = gossip
         self.response = response
-        self.prev_msg_id = prev_msg_id
+        self.prev_msg = prev_msg
         self.opt_node, self.opt_latency = self.calc_optimals()
         if(msg_type == 2 and response):
             self.discovered_latency = self.env.get_latency(body, self.rec_id)
@@ -23,10 +23,10 @@ class Message(object):
     def calc_optimals(self):
         if (isinstance(self.env.get_participant(self.send_id), FogNode) and isinstance(self.env.get_participant(self.rec_id), FogNode)):
             return None, None
-        if(self.msg_type == 3):
+        elif(self.msg_type == 3):
             return None, None
-        if(self.response):
-            prev_msg = self.env.get_message(self.prev_msg_id)
+        elif(self.response):
+            prev_msg = self.prev_msg
             prev_opt_node = prev_msg.opt_node
             opt_latency = self.env.get_latency(prev_opt_node, self.rec_id)
             return prev_opt_node, opt_latency
