@@ -11,7 +11,7 @@ import numpy as np
 
 
 class MobileClient(object):
-    def __init__(self, env, id, plan, latency_threshold=0.9, roundtrip_threshold=1.2, timeout_threshold=2, verbose=True):
+    def __init__(self, env, id, plan, discovery_protocol, latency_threshold=0.9, roundtrip_threshold=1.2, timeout_threshold=2, verbose=True):
         """ Initializes a Mobile Client
         Args:
             env (simpy.Environment): The Environment of the simulation
@@ -24,7 +24,7 @@ class MobileClient(object):
         self.connected = False
         self.verbose = verbose
         # ID of closest node as string
-        self.closest_node_id = ""
+        self.closest_node_id = None
         self.latency_threshold = latency_threshold
         self.roundtrip_threshold = roundtrip_threshold
         self.timeout_threshold = timeout_threshold
@@ -48,11 +48,12 @@ class MobileClient(object):
         self.monitor_process = self.env.process(self.monitor())
         self.stop_event = env.event()
 
-        # Init the VivaldiPosition
-        self.vivaldiposition = VivaldiPosition.create()
+        # Init the virtual Position
+        self.virtual_position = self.init_virtual_position(discovery_protocol)
+        self.discovery_protocol = discovery_protocol
         # Gossip of all nodes
         self.gossip = [
-            {"id": self.id, "position": self.vivaldiposition, "timestamp": env.now, "type": type(self).__name__}]
+            {"id": self.id, "position": self.get_virtual_position(), "timestamp": env.now, "type": type(self).__name__}]
         self.move_performance = np.nan
         self.out_performance = np.nan
         self.in_performance = np.nan
@@ -75,6 +76,9 @@ class MobileClient(object):
             dist_y = to_y - self.phy_y
             vel_x = dist_x / duration
             vel_y = dist_y / duration
+            # skip this leg if we are not going anywhere, threshold of 10 because sometimes its weird
+            if dist_x == 10 and dist_y == 10:
+                continue
             # Moving until x and y match the end point of the leg
             while(round(to_x, 2) != round(self.phy_x, 2) and round(to_y, 2) != round(self.phy_y, 2)):
                 start = time.perf_counter()
@@ -88,25 +92,39 @@ class MobileClient(object):
                     yield self.env.timeout(1)
                 except simpy.Interrupt:
                     return
-                
-                self.move_performance = time.perf_counter()- start
 
-    def out_connect(self):
-        my_random = Random(self.id)
+                self.move_performance = time.perf_counter() - start
+        # Client has no more activities so we stop
+        self.stop_event.succeed("No more activities")
+        self.stop_event = self.env.event()
         
+    def out_connect(self):
+        """The process which handles outgoing messages
+        If no node is registered or the connection is not valid anymore (see ReconnectionRules), the client sends a type 2 Message to a node
+        else the client sends a task to the closest node
+
+        Yields:
+            simpy.timeout: Timeout event 
+        """
+        my_random = Random(self.id)
+        # wait until nodes are ready
+        yield self.env.timeout(5)
+
         while (True):
             start = time.perf_counter()
             # If no node is registered or connection not valid, trigger the event to search for the closest node
             if(not self.closest_node_id or not self.connection_valid()):
                 if self.verbose:
                     print("Client {}: Probing network".format(self.id))
-                # TODO rather take closest Node from gossip
-                random_node = self.env.get_random_node()
-                out_msg = self.env.send_message(self.id, random_node,
+                if not self.closest_node_id:
+                    request_node = self.env.get_random_node()
+                else:
+                    request_node = self.closest_node_id
+                out_msg = self.env.send_message(self.id, request_node,
                                                 "Request Closest node", gossip=self.gossip, msg_type=2)
                 self.out_msg_history.append(out_msg)
             # If closest node is registered, send messages to node
-            else:
+            if self.closest_node_id:
                 out_msg = self.env.send_message(
                     self.id, self.closest_node_id, "Client {} sends a task".format(self.id), gossip=self.gossip)
                 self.out_msg_history.append(out_msg)
@@ -114,10 +132,17 @@ class MobileClient(object):
                 yield self.env.timeout(my_random.randint(1, 3))
             except simpy.Interrupt:
                 return
-            self.out_performance = time.perf_counter()- start
-
+            self.out_performance = time.perf_counter() - start
 
     def in_connect(self):
+        """The process which handles the incoming messages.
+        Updates Gossip, updates the virtual position and depending on the message type performs different actions
+        Type 1: Standard answer from node -> do nothin
+        Type 2: Response to closest node request -> set closest_node_id to body of the answer
+
+        Yields:
+            simypy.Store: incoming Message pipe of the cleint
+        """
         while(True):
             try:
                 in_msg = yield self.msg_pipe.get()
@@ -132,34 +157,33 @@ class MobileClient(object):
             # Update gossip
             self.update_gossip(in_msg)
 
-            # Updating the VivaldiPosition for every incoming message which is a response in the following
-            # Checking if incoming message is a response on which a rtt can be calculated and vivaldiposition is updated
-            if(in_msg.prev_msg_id):
-                sender = self.env.get_participant(in_msg.send_id)
-                cj = sender.get_vivaldi_position()
-                ej = cj.getErrorEstimate()
-                rtt = self.calculate_rtt(in_msg)
-                try:
-                    self.vivaldiposition.update(rtt, cj, ej)
-                except ValueError as e:
-                    print(
-                        "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
+            # Updating the virtual Position for every incoming message which is a response in the following
+            # Checking if incoming message is a response on which a rtt can be calculated and virtual position is updated
+            if(in_msg.prev_msg):
+                self.update_virtual_position(in_msg)
             # Extracting message Type
             msg_type = in_msg.msg_type
 
             # Standard task message
             if(msg_type == 1):
                 if self.verbose:
-                    print("Client {}: Message from Node {} at {} from {}: {}".format(
-                        self.id, in_msg.send_id, round(self.env.now, 2), round(in_msg.timestamp, 2), in_msg.body))
+                    print("Client {}: {}".format(self.id, in_msg))
 
             # Closest node message
             elif(msg_type == 2):
                 if self.verbose:
-                    print("Client {}: Message from Node {} at {} from {}: Closest node is {}".format(
-                        self.id, in_msg.send_id, round(self.env.now, 2), round(in_msg.timestamp, 2), in_msg.body))
+                    print("Client {}: {}".format(self.id, in_msg))
                 self.closest_node_id = in_msg.body
-            self.in_performance = time.perf_counter()- start
+
+            # Network probing performed by a node
+            elif(msg_type == 3):
+                if self.verbose:
+                    print("Client {}: {}".format(self.id, in_msg))
+                out_msg = self.env.send_message(
+                    self.id, in_msg.send_id, "Client {} response to ping".format(self.id), gossip=self.gossip, response = True, msg_type = 3, prev_msg = in_msg)
+                self.out_msg_history.append(out_msg)
+
+            self.in_performance = time.perf_counter() - start
 
     def monitor(self):
         """Monitor process for the client.
@@ -241,13 +265,45 @@ class MobileClient(object):
             print("Client {} stopped: {}".format(self.id, cause))
         # self.move_process.fail(exception=Exception)
 
-    def get_vivaldi_position(self):
-        """Returns the virtual coordinate
+    def init_virtual_position(self, discovery_protocol):
+        """Inits the virtual position depending on the discovery protocol
+
+        Args:
+            discovery_protocol (string): the used discovery protocol
 
         Returns:
-            VivaldiPosition: the VivaldiPosition of the node
+            other: the virtual position for the client
         """
-        return self.vivaldiposition
+        if discovery_protocol == "vivaldi":
+            return VivaldiPosition.create()
+        else:
+            return None
+
+    def get_virtual_position(self):
+        """Returns the virtual position
+
+        Returns:
+            other: the virtual position of the node
+        """
+        return self.virtual_position
+
+    def update_virtual_position(self, in_msg):
+        """Wrapper function to update the virtual position. Checks which protocol is currently used and updates the respective virtual coordinate
+
+        Args:
+            in_msg (Message)): The incoming Message on which the virtual position is updated
+        """
+        sender = self.env.get_participant(in_msg.send_id)
+        if self.discovery_protocol == "vivaldi":
+            cj = sender.get_virtual_position()
+            ej = cj.getErrorEstimate()
+            rtt = self.calculate_rtt(in_msg)
+
+            try:
+                self.virtual_position.update(rtt, cj, ej)
+            except ValueError as e:
+                print(
+                    "Node {} TypeError at update VivaldiPosition: {}".format(self.id, e))
 
     def calculate_rtt(self, in_msg):
         """Calculates the round-trip-time (rtt) of the incoming message by comparing timestamps with the out message
@@ -260,7 +316,7 @@ class MobileClient(object):
         """
         msg_id = in_msg.id
         out_msg = next(
-            (message for message in self.out_msg_history if message.id == in_msg.prev_msg_id), None)
+            (message for message in self.out_msg_history if message.id == in_msg.prev_msg.id), None)
         rtt = self.env.now - out_msg.timestamp
         return rtt
 
@@ -292,7 +348,7 @@ class MobileClient(object):
                 # keep own gossip up to date
                 if news["id"] == self.id:
                     own_news.update(
-                        {"position": self.vivaldiposition, "timestamp": self.env.now})
+                        {"position": self.get_virtual_position(), "timestamp": self.env.now})
                 elif own_news["timestamp"] < news["timestamp"]:
                     own_news.update(
-                        {"position": self.vivaldiposition, "timestamp": self.env.now})
+                        {"position": self.get_virtual_position(), "timestamp": self.env.now})

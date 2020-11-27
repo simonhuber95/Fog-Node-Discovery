@@ -1,6 +1,7 @@
 from simpy import Environment
 import math
 import uuid
+from random import Random
 import random
 from operator import itemgetter
 from .message import Message
@@ -31,29 +32,26 @@ class FogEnvironment(Environment):
         """
         return random.choice(self.nodes)["id"]
 
-    def send_message(self, send_id, rec_id, msg, gossip, msg_type=1, prev_msg_id=None):
+    def send_message(self, send_id, rec_id, msg, gossip, response=False, msg_type=1, prev_msg=None):
         """
         Parameter send_id as string: ID of sender
         Paramater rec_id as string: ID of recipient
         Parameter msg as string: Message to be send
         Parameter gossip as dict: Gossip of all virtual coordinates
         Parameter msg_type as int *optional: type of message -> 1: regular message (default), 2: Closest node request, 3: Node discovery
-        Parameter prev_msg_id as uuid *optional: unique id of the predecessing message
+        Parameter prev_msg as Message *optional: the predecessing Message
         """
         # Create new message ID if none is given
         msg_id = uuid.uuid4()
         # get the latency between the two participants
         # Assemble message
         message = Message(self, msg_id, send_id, rec_id, msg,
-                          msg_type, gossip, prev_msg_id=prev_msg_id)
+                          msg_type, gossip, response=response, prev_msg=prev_msg)
         # Send message to receiver
         delivery_process = self.process(self.message_delivery(message))
-        # Put message in gloabal history
+        # Put message in gloabal history, gets cleared every timestep by the monitor process
         self.messages.append(message)
-        # limiting the message storage
-        if(len(self.messages) > 2000):
-            self.messages.pop(0)
-        # # Return messsage to sender to put it into the history
+        # Return messsage to sender to put it into the history
         return message
 
     def message_delivery(self, message):
@@ -66,24 +64,35 @@ class FogEnvironment(Environment):
         Paramater rec_id as string: ID of recipient
         Returns float: Latency in seconds
         """
-        random.seed(self.now)
+        my_random = Random()
+        my_random.seed(str(self.now) + str(send_id) + str(rec_id))
         sender = self.get_participant(send_id)
         receiver = self.get_participant(rec_id)
         distance = self.get_distance(
             sender.phy_x, sender.phy_y, receiver.phy_x, receiver.phy_y)
+        high_band_distance = self.config["bands"]["5G-High"]["distance"]
+        medium_band_distance = self.config["bands"]["5G-Medium"]["distance"]
+        low_band_distance = self.config["bands"]["5G-Low"]["distance"]
+        
+        # Deviaton formular: (distance - Distmin)/(Distmax -Distmin) * (MaxDev - MinDev) + MinDev
+        # Squashes the distance from the participant between [MinDev, MaxDev] and is multiplies with the standard latency
         # High-Band 5G
-        if(distance < self.config["bands"]["5G-High"]["distance"]):
-            return self.config["bands"]["5G-High"]["latency"]/1000 * random.randint(75, 125)/100
+        if(distance < high_band_distance):
+            high_deviation = (distance - 0)/(high_band_distance - 0) * (1.25 - 0.75) + 0.75
+            return self.config["bands"]["5G-High"]["latency"]/1000 * my_random.randint(90,110)/100 * high_deviation
         # Medium-Band 5G
-        elif (distance < self.config["bands"]["5G-Medium"]["distance"]):
-            return self.config["bands"]["5G-Medium"]["latency"]/1000 * random.randint(75, 125)/100
+        elif (distance < medium_band_distance):
+            medium_deviation = (distance - high_band_distance)/(medium_band_distance - high_band_distance) * (1.25 - 0.75) + 0.75
+            return self.config["bands"]["5G-Medium"]["latency"]/1000 * my_random.randint(90,110)/100 * medium_deviation
         # Low-Band 5G
-        elif (distance < self.config["bands"]["5G-Low"]["distance"]):
-            return self.config["bands"]["5G-Low"]["latency"]/1000 * random.randint(75, 125)/100
+        elif (distance < low_band_distance):
+            low_deviation = (distance - medium_band_distance)/(low_band_distance - medium_band_distance) * (1.25 - 0.75) + 0.75
+            return self.config["bands"]["5G-Low"]["latency"]/1000 * my_random.randint(90,110)/100 * low_deviation
         # 3G
         else:
-            return 1
-
+            return 0.2
+    
+     
     def get_distance(self, send_x, send_y, rec_x, rec_y):
         """Calculates the physical distance between to points in meters
 
@@ -173,9 +182,17 @@ class FogEnvironment(Environment):
     def monitor(self):
         runtime = self.config["simulation"]["runtime"]
         modulus = runtime / 10
+        timestamp = 0
         while(True):
-            if(self.now == 0):
-                print("Runtime: {}/{}".format(self.now, runtime))
-            elif(self.now % modulus == 0):
-                print("Runtime: {}/{}".format(self.now, runtime))
+            
+            # if(self.now == 0):
+            #     print("Runtime: {}/{}".format(self.now, runtime))
+            # elif(self.now % modulus == 0):
+            #     print("Runtime: {}/{}".format(self.now, runtime))
+            duration = round(time.perf_counter() - timestamp,2)
+            timestamp = time.perf_counter()
+            print("Runtime: {}/{} in {} seconds with {} messages".format(self.now, runtime, duration, len(self.messages)))
+            # print("Runtime: {}/{} in {} seconds with".format(self.now, runtime, duration))
+            # clear message history
+            self.messages = []
             yield self.timeout(1)

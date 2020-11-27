@@ -15,8 +15,9 @@ class ReconnectionRules(object):
             boolean: Whether the latency is lower than the threshold
         """
         latency = self.env.get_latency(send_id, rec_id)
-
-        return True if latency < threshold else False
+        check = True if latency < threshold else False
+        # if not check: print("latency rule failed")
+        return check
 
     def roundtrip_rule(self, out_history, in_history, threshold=1):
         """Roundtrip Rule for client. Checks if the roundtrip rule for the last message with corresponding response 
@@ -30,15 +31,21 @@ class ReconnectionRules(object):
         Returns:
             boolean: Whether the roundtrip time is lower than the threshold
         """
-        last_in_msg = in_history[-1]
+        last_in_msg = next(
+            (message for message in reversed(in_history) if message.msg_type == 1), None)
+        # No task has been sent yet
+        if(not last_in_msg):
+            return True
         out_msg = next(
-            (message for message in out_history if message.id == last_in_msg.prev_msg_id), None)
+            (message for message in out_history if message.id == last_in_msg.prev_msg.id), None)
         # Message has not come back so RTT cannot be calculated
         if(not out_msg):
             return True
 
         roundtrip_time = last_in_msg.rec_timestamp - out_msg.timestamp
-        return True if roundtrip_time < threshold else False
+        check = True if roundtrip_time < threshold else False
+        # if not check: print("Roundtrip rule failed")
+        return check 
 
     def timeout_rule(self, out_history, in_history, threshold=1.5):
         """Timeout Rule for Client. Checks if the time past for a non received answer exceeds the threshold
@@ -50,7 +57,10 @@ class ReconnectionRules(object):
         """
         last_in_msg = in_history[-1]
         out_msg = next(
-            (message for message in out_history if message.id == last_in_msg.prev_msg_id), None)
+            (message for message in out_history if last_in_msg.prev_msg and message.id == last_in_msg.prev_msg.id), None)
+        # Message was no respone, so we dont care
+        if(not out_msg):
+            return True
         # If Out Message has been sent longer than threshold and no answer is received
         if(self.env.now - out_msg.timestamp > threshold and not last_in_msg):
             return False

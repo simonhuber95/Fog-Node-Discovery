@@ -54,10 +54,11 @@ class Metrics(object):
             history = [*client["obj"].in_msg_history,
                        *client["obj"].out_msg_history]
             for message in history:
-                latencies.append(message.latency)
+                if message.msg_type != 3:
+                    latencies.append(message.latency)
 
-            data.append({"client_id": client["obj"].id, "lat_mean": np.mean(
-                latencies), "lat_max": np.max(latencies), "lat_min": np.min(latencies)})
+            data.append({"client_id": client["obj"].id, "lat_mean": round(np.mean(
+                latencies)*1000), "lat_max": round(np.max(latencies)*1000), "lat_min": round(np.min(latencies)*1000)})
         df = pd.DataFrame(data=data, columns=[
                           "client_id", "lat_mean", "lat_max", "lat_min"])
         return df
@@ -82,10 +83,14 @@ class Metrics(object):
     def collect_lost_messages(self):
         data = []
         for client in self.env.clients:
+            filtered_in_history = list(
+                filter(lambda message: message.msg_type != 3, client["obj"].in_msg_history))
+            filtered_out_history = list(
+                filter(lambda message: message.msg_type != 3, client["obj"].out_msg_history))
             in_ids = list(
-                map(lambda msg: msg.prev_msg_id, client["obj"].in_msg_history))
+                map(lambda msg: msg.prev_msg.id, filtered_in_history))
             match_ids = list(
-                filter(lambda msg: msg.id not in in_ids, client["obj"].out_msg_history))
+                filter(lambda msg: msg.id not in in_ids, filtered_out_history))
             data.append(
                 {"client_id": client["obj"].id, "lost_msgs": len(match_ids)})
         return pd.DataFrame(data=data, columns=[
@@ -101,7 +106,7 @@ class Metrics(object):
         for client in self.env.clients:
             first_msg = client["obj"].out_msg_history[0]
             last_msg = client["obj"].out_msg_history[-1]
-            active_time = last_msg.timestamp - first_msg.timestamp
+            active_time = round(last_msg.timestamp - first_msg.timestamp)
             data.append(
                 {"client_id": client["obj"].id, "active_time": active_time})
         return pd.DataFrame(data=data, columns=["client_id", "active_time"])
@@ -122,23 +127,24 @@ class Metrics(object):
             # counter for chosing the optimal node
             opt_choice = 0
             for in_msg in client["obj"].in_msg_history:
-                if(in_msg.prev_msg_id and in_msg.msg_type == 1):
+                if(in_msg.prev_msg and in_msg.msg_type == 1):
                     # Retrieve request for the incoming response
                     out_msg = next(
-                        (message for message in client["obj"].out_msg_history if message.id == in_msg.prev_msg_id), None)
-                    y_true.append(out_msg.latency + in_msg.latency)
-                    y_opt.append(out_msg.opt_latency + in_msg.opt_latency)
+                        (message for message in client["obj"].out_msg_history if message.id == in_msg.prev_msg.id), None)
+                    y_true.append((out_msg.latency + in_msg.latency) * 1000)
+                    y_opt.append(
+                        (out_msg.opt_latency + in_msg.opt_latency)*1000)
                     # Counter of optimal node choice
-                    opt_choice = opt_choice + 1 if in_msg.opt_node == in_msg.send_id else opt_choice  
-                    
-            opt_rate = opt_choice/len(y_true) if len(y_true)>0 else 0
-            mse = np.square(np.subtract(y_true, y_opt)).mean()
+                    opt_choice = opt_choice + 1 if in_msg.opt_node == in_msg.send_id else opt_choice
+
+            opt_rate = opt_choice/len(y_true) if len(y_true) > 0 else 0
+            mse = round(np.sqrt(np.square(np.subtract(y_true, y_opt)).mean()))
             data.append(
-                {"client_id": client["obj"].id, "rtt_mse": mse, "opt_rate": round(opt_rate, 2)})
-        return pd.DataFrame(data=data, columns=["client_id", "rtt_mse", "opt_rate"])
-    
+                {"client_id": client["obj"].id, "rtt_rmse": mse, "opt_rate": round(opt_rate, 2)})
+        return pd.DataFrame(data=data, columns=["client_id", "rtt_rmse", "opt_rate"])
+
     def collect_discovery_error(self):
-        """Computes the mean-square-error for every message from type 2 of the optimal latency and the latency to the suggestes node
+        """Computes the mean-square-error for every message from type 2 of the optimal latency and the latency to the suggested node
         Computes the percentage how often the client is suggested the perfect node
 
         Returns:
@@ -152,18 +158,18 @@ class Metrics(object):
             y_opt = []
             # counter for chosing the optimal node
             opt_choice = 0
-            for in_msg in (x for x in client["obj"].in_msg_history if x.msg_type == 2):
-                y_true.append(in_msg.discovered_latency)
-                y_opt.append(in_msg.opt_latency)
+            for in_msg in (x for x in client["obj"].in_msg_history if x.msg_type == 2 and x.response):
+                y_true.append(in_msg.discovered_latency*1000)
+                y_opt.append(in_msg.opt_latency*1000)
                 # Counter of optimal node choice
-                opt_choice = opt_choice + 1 if in_msg.opt_node == in_msg.body else opt_choice 
-                 
-            opt_rate = opt_choice/len(y_true) if len(y_true)>0 else 0
-            mse = np.square(np.subtract(y_true, y_opt)).mean()
+                opt_choice = opt_choice + 1 if in_msg.opt_node == in_msg.body else opt_choice
+
+            opt_rate = opt_choice/len(y_true) if len(y_true) > 0 else 0
+            rmse = round(np.sqrt(np.square(np.subtract(y_true, y_opt)).mean()))
             data.append(
-                {"client_id": client["obj"].id, "discovery_mse": mse, "discovery_rate": round(opt_rate, 2)})
-        return pd.DataFrame(data=data, columns=["client_id", "discovery_mse", "discovery_rate"])
-    
+                {"client_id": client["obj"].id, "discovery_rmse": round(rmse), "discovery_rate": round(opt_rate, 2)})
+        return pd.DataFrame(data=data, columns=["client_id", "discovery_rmse", "discovery_rate"])
+
     def collect_error_over_time(self):
         """Computes the mean-square-error for every message from type 2 of the optimal latency and the latency to the suggestes node
         Computes the percentage how often the client is suggested the perfect node
@@ -177,18 +183,20 @@ class Metrics(object):
             # counter for chosing the optimal node
             opt_choice = []
             for in_msg in (x for x in client["obj"].in_msg_history if x.msg_type == 2):
-                y_true= in_msg.discovered_latency
-                y_opt=in_msg.opt_latency
+                y_true = in_msg.discovered_latency * 1000
+                y_opt = in_msg.opt_latency * 1000
                 # Counter of optimal node choice
                 opt_choice.append(1 if in_msg.opt_node == in_msg.body else 0)
                 timestamp = round(in_msg.timestamp)
                 data.append(
                     {"timestamp": timestamp, "y_true": y_true, "y_opt": y_opt, "discovery_rate": sum(opt_choice)/len(opt_choice)})
-        df = pd.DataFrame(data=data, columns=["timestamp", "y_true", "y_opt", "discovery_rate"])
-        
-        df = df.groupby("timestamp").apply(lambda x: np.square(np.subtract(x.y_true, x.y_opt)).mean())
+        df = pd.DataFrame(data=data, columns=[
+                          "timestamp", "y_true", "y_opt", "discovery_rate"])
+
+        df = df.groupby("timestamp").apply(
+            lambda x: np.sqrt(np.square(np.subtract(x.y_true, x.y_opt)).mean()))
         return df
-    
+
     def collect_opt_choice_over_time(self):
         """Computes the mean-square-error for every message from type 2 of the optimal latency and the latency to the suggestes node
         Computes the percentage how often the client is suggested the perfect node
@@ -209,5 +217,3 @@ class Metrics(object):
         df = pd.DataFrame(data=data, columns=["timestamp", "opt_choice"])
         df = df.groupby("timestamp").agg("mean")
         return df
-        
-        
