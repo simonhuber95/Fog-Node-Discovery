@@ -9,7 +9,7 @@ __pycache__/
 # C extensions
 *.so
 # Data sets
-data/
+
 
 # Distribution / packaging
 .Python
