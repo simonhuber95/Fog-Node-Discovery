@@ -92,7 +92,6 @@ class FogEnvironment(Environment):
         else:
             return 0.2
     
-     
     def get_distance(self, send_x, send_y, rec_x, rec_y):
         """Calculates the physical distance between to points in meters
 
