@@ -155,7 +155,7 @@ class Metrics(object):
             y_opt = []
             # counter for chosing the optimal node
             opt_choice = 0
-            for in_msg in (x for x in client["obj"].in_msg_history if x.msg_type == 2):
+            for in_msg in (x for x in client["obj"].in_msg_history if x.msg_type == 2 and x.response):
                 y_true.append(in_msg.discovered_latency)
                 y_opt.append(in_msg.opt_latency)
                 # Counter of optimal node choice

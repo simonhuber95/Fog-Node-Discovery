@@ -76,6 +76,9 @@ class MobileClient(object):
             dist_y = to_y - self.phy_y
             vel_x = dist_x / duration
             vel_y = dist_y / duration
+            # skip this leg if we are not going anywhere, threshold of 10 because sometimes its weird
+            if dist_x == 10 and dist_y == 10:
+                continue
             # Moving until x and y match the end point of the leg
             while(round(to_x, 2) != round(self.phy_x, 2) and round(to_y, 2) != round(self.phy_y, 2)):
                 start = time.perf_counter()
@@ -91,7 +94,10 @@ class MobileClient(object):
                     return
 
                 self.move_performance = time.perf_counter() - start
-
+        # Client has no more activities so we stop
+        self.stop_event.succeed("No more activities")
+        self.stop_event = self.env.event()
+        
     def out_connect(self):
         """The process which handles outgoing messages
         If no node is registered or the connection is not valid anymore (see ReconnectionRules), the client sends a type 2 Message to a node
@@ -110,13 +116,15 @@ class MobileClient(object):
             if(not self.closest_node_id or not self.connection_valid()):
                 if self.verbose:
                     print("Client {}: Probing network".format(self.id))
-                # TODO rather take closest Node from gossip
-                random_node = self.env.get_random_node()
-                out_msg = self.env.send_message(self.id, random_node,
+                if not self.closest_node_id:
+                    request_node = self.env.get_random_node()
+                else:
+                    request_node = self.closest_node_id
+                out_msg = self.env.send_message(self.id, request_node,
                                                 "Request Closest node", gossip=self.gossip, msg_type=2)
                 self.out_msg_history.append(out_msg)
             # If closest node is registered, send messages to node
-            else:
+            if self.closest_node_id:
                 out_msg = self.env.send_message(
                     self.id, self.closest_node_id, "Client {} sends a task".format(self.id), gossip=self.gossip)
                 self.out_msg_history.append(out_msg)

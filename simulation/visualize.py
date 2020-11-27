@@ -92,7 +92,7 @@ def visualize_node_performance(env, runtime):
     plt.draw()
     while True:
         performance_i = [
-            node["obj"].await_performance for node in env.nodes]
+            node["obj"].connect_performance for node in env.nodes]
         hl.set_xdata(np.append(hl.get_xdata(), env.now))
         hl.set_ydata(np.append(hl.get_ydata(), np.nanmean(performance_i)))
 

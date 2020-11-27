@@ -1,6 +1,7 @@
 from simpy import Environment
 import math
 import uuid
+from random import Random
 import random
 from operator import itemgetter
 from .message import Message
@@ -14,7 +15,7 @@ class FogEnvironment(Environment):
         self.clients = []
         self.nodes = []
         self.boundaries = tuple()
-        # self.messages = []
+        self.messages = []
         self.monitor_process = self.process(self.monitor())
 
     def get_participant(self, id):
@@ -49,7 +50,7 @@ class FogEnvironment(Environment):
         # Send message to receiver
         delivery_process = self.process(self.message_delivery(message))
         # Put message in gloabal history, gets cleared every timestep by the monitor process
-        # self.messages.append(message)
+        self.messages.append(message)
         # Return messsage to sender to put it into the history
         return message
 
@@ -63,24 +64,35 @@ class FogEnvironment(Environment):
         Paramater rec_id as string: ID of recipient
         Returns float: Latency in seconds
         """
-        random.seed(str(self.now) + str(send_id) + str(rec_id))
+        my_random = Random()
+        my_random.seed(str(self.now) + str(send_id) + str(rec_id))
         sender = self.get_participant(send_id)
         receiver = self.get_participant(rec_id)
         distance = self.get_distance(
             sender.phy_x, sender.phy_y, receiver.phy_x, receiver.phy_y)
+        high_band_distance = self.config["bands"]["5G-High"]["distance"]
+        medium_band_distance = self.config["bands"]["5G-Medium"]["distance"]
+        low_band_distance = self.config["bands"]["5G-Low"]["distance"]
+        
+        # Deviaton formular: (distance - Distmin)/(Distmax -Distmin) * (MaxDev - MinDev) + MinDev
+        # Squashes the distance from the participant between [MinDev, MaxDev] and is multiplies with the standard latency
         # High-Band 5G
-        if(distance < self.config["bands"]["5G-High"]["distance"]):
-            return self.config["bands"]["5G-High"]["latency"]/1000 * random.randint(75, 125)/100
+        if(distance < high_band_distance):
+            high_deviation = (distance - 0)/(high_band_distance - 0) * (1.25 - 0.75) + 0.75
+            return self.config["bands"]["5G-High"]["latency"]/1000 * my_random.randint(90,110)/100 * high_deviation
         # Medium-Band 5G
-        elif (distance < self.config["bands"]["5G-Medium"]["distance"]):
-            return self.config["bands"]["5G-Medium"]["latency"]/1000 * random.randint(75, 125)/100
+        elif (distance < medium_band_distance):
+            medium_deviation = (distance - high_band_distance)/(medium_band_distance - high_band_distance) * (1.25 - 0.75) + 0.75
+            return self.config["bands"]["5G-Medium"]["latency"]/1000 * my_random.randint(90,110)/100 * medium_deviation
         # Low-Band 5G
-        elif (distance < self.config["bands"]["5G-Low"]["distance"]):
-            return self.config["bands"]["5G-Low"]["latency"]/1000 * random.randint(75, 125)/100
+        elif (distance < low_band_distance):
+            low_deviation = (distance - medium_band_distance)/(low_band_distance - medium_band_distance) * (1.25 - 0.75) + 0.75
+            return self.config["bands"]["5G-Low"]["latency"]/1000 * my_random.randint(90,110)/100 * low_deviation
         # 3G
         else:
-            return 1
-
+            return 0.2
+    
+     
     def get_distance(self, send_x, send_y, rec_x, rec_y):
         """Calculates the physical distance between to points in meters
 
@@ -179,8 +191,8 @@ class FogEnvironment(Environment):
             #     print("Runtime: {}/{}".format(self.now, runtime))
             duration = round(time.perf_counter() - timestamp,2)
             timestamp = time.perf_counter()
-            # print("Runtime: {}/{} in {} seconds with {} messages".format(self.now, runtime, duration, len(self.messages)))
-            print("Runtime: {}/{} in {} seconds with".format(self.now, runtime, duration))
+            print("Runtime: {}/{} in {} seconds with {} messages".format(self.now, runtime, duration, len(self.messages)))
+            # print("Runtime: {}/{} in {} seconds with".format(self.now, runtime, duration))
             # clear message history
-             #self.messages = []
+            self.messages = []
             yield self.timeout(1)

@@ -73,7 +73,7 @@ class FogNode(object):
             # Message type 1 = Regular Message from client, just reply
             if(in_msg.msg_type == 1):
                 out_msg = self.env.send_message(
-                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, prev_msg=in_msg)
+                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response = True, prev_msg=in_msg)
                 self.out_msg_history.append(out_msg)
 
             # Message type 2 = Node Request -> Trigger search for closest node
@@ -89,7 +89,7 @@ class FogNode(object):
                 # If there is no message with this ID it is a Request and node simply answers
                 else:
                     out_msg = self.env.send_message(
-                        self.id, in_msg.send_id, "Probe reply from Node", gossip=self.gossip, prev_msg=in_msg, msg_type=3)
+                        self.id, in_msg.send_id, "Probe reply from Node", gossip=self.gossip, response = True, prev_msg=in_msg, msg_type=3)
                     self.out_msg_history.append(out_msg)
 
             # unknown message type
@@ -123,7 +123,7 @@ class FogNode(object):
         client_id = in_msg.send_id
         start = time.perf_counter()
         msg = self.env.send_message(self.id, client_id,
-                                    closest_node_id, gossip=self.gossip, msg_type=2, prev_msg=in_msg)
+                                    closest_node_id, gossip=self.gossip, msg_type=2, response = True, prev_msg=in_msg)
         self.discovery_performance = time.perf_counter() - start
 
     def meridian_connect(self):
