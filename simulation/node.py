@@ -18,10 +18,8 @@ class FogNode(object):
         self.discovery_protocol = discovery_protocol
         self.resource = Resource(env, 1 if slots < 1 else slots)
         self.msg_pipe = simpy.Store(env)
-        self.probe_event = env.event()
         self.phy_x = phy_x
         self.phy_y = phy_y
-        self.connect_event = env.event()
         self.in_msg_history = []
         self.out_msg_history = []
         self.verbose = verbose
@@ -73,7 +71,7 @@ class FogNode(object):
             # Message type 1 = Regular Message from client, just reply
             if(in_msg.msg_type == 1):
                 out_msg = self.env.send_message(
-                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response = True, prev_msg=in_msg)
+                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response=True, prev_msg=in_msg)
                 self.out_msg_history.append(out_msg)
 
             # Message type 2 = Node Request -> Trigger search for closest node
@@ -89,7 +87,7 @@ class FogNode(object):
                 # If there is no message with this ID it is a Request and node simply answers
                 else:
                     out_msg = self.env.send_message(
-                        self.id, in_msg.send_id, "Probe reply from Node", gossip=self.gossip, response = True, prev_msg=in_msg, msg_type=3)
+                        self.id, in_msg.send_id, "Probe reply from Node", gossip=self.gossip, response=True, prev_msg=in_msg, msg_type=3)
                     self.out_msg_history.append(out_msg)
 
             # unknown message type
@@ -123,7 +121,7 @@ class FogNode(object):
         client_id = in_msg.send_id
         start = time.perf_counter()
         msg = self.env.send_message(self.id, client_id,
-                                    closest_node_id, gossip=self.gossip, msg_type=2, response = True, prev_msg=in_msg)
+                                    closest_node_id, gossip=self.gossip, msg_type=2, response=True, prev_msg=in_msg)
         self.discovery_performance = time.perf_counter() - start
 
     def meridian_connect(self):
@@ -209,7 +207,7 @@ class FogNode(object):
                 if self.verbose:
                     print("Node {} received unknown message type: {}".format(
                         self.id, in_msg.msg_type))
-            
+
             self.connect_performance = time.perf_counter() - start
 
     def meridian_get_closest_node(self, in_msg):
@@ -248,7 +246,7 @@ class FogNode(object):
         self.env.process(self.await_meridian_pings(
             target, in_msg.latency, orig_msg))
         self.discovery_performance = time.perf_counter() - start
-        
+
     def await_meridian_pings(self, target, d_latency, orig_msg):
         waiting_time = (2*self.virtual_position.beta + 1)*d_latency
         yield self.env.timeout((waiting_time))
@@ -268,7 +266,7 @@ class FogNode(object):
                                         self.id, gossip=self.gossip, response=True, msg_type=2, prev_msg=orig_msg)
         self.meridian_requests.remove(requests)
         self.await_performance = time.perf_counter() - start
-        
+
     def meridian_ring_management(self, period=30):
         # Startup timeout is random so nodes do the ring management at different timesteps
         yield self.env.timeout(Random().randint(10, 20) + Random().random())
@@ -328,6 +326,15 @@ class FogNode(object):
             other: the virtual position of the node
         """
         return self.virtual_position
+
+    def get_bandwidth(self):
+        """Calculates the current bandwith of the node depending on the amount of active connections and total amound of slots available
+        Bandwidth is reduced linearly the more Clients are connected
+
+        Returns:
+            float: Bandwidth in Gbps between (0,1]
+        """
+        return min(1, 1 - (1/(self.slots)) * self.resource.count - 1)
 
     def calculate_rtt(self, in_msg):
         """Calculates the round-trip-time (rtt) of the incoming message by comparing timestamps with the out message
