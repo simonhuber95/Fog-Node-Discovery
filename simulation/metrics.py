@@ -58,7 +58,7 @@ class Metrics(object):
                     latencies.append(message.latency)
 
             data.append({"client_id": client["obj"].id, "lat_mean": round(np.mean(
-                latencies)*1000, 4), "lat_max": round(np.max(latencies)*1000, 4), "lat_min": round(np.min(latencies)*1000, 4)})
+                latencies)*1000, 3), "lat_max": round(np.max(latencies)*1000, ), "lat_min": round(np.min(latencies)*1000, 3)})
         df = pd.DataFrame(data=data, columns=[
                           "client_id", "lat_mean", "lat_max", "lat_min"])
         return df
@@ -139,7 +139,7 @@ class Metrics(object):
 
             opt_rate = opt_choice/len(y_true) if len(y_true) > 0 else 0
             mse = round(
-                np.sqrt(np.square(np.subtract(y_true, y_opt)).mean()), 4)
+                np.sqrt(np.square(np.subtract(y_true, y_opt)).mean()), 3)
             data.append(
                 {"client_id": client["obj"].id, "rtt_rmse": mse, "opt_rate": round(opt_rate, 2)})
         return pd.DataFrame(data=data, columns=["client_id", "rtt_rmse", "opt_rate"])
@@ -167,7 +167,7 @@ class Metrics(object):
 
             opt_rate = opt_choice/len(y_true) if len(y_true) > 0 else 0
             rmse = round(
-                np.sqrt(np.square(np.subtract(y_true, y_opt)).mean()), 4)
+                np.sqrt(np.square(np.subtract(y_true, y_opt)).mean()), 3)
             data.append(
                 {"client_id": client["obj"].id, "discovery_rmse": rmse, "discovery_rate": round(opt_rate, 2)})
         return pd.DataFrame(data=data, columns=["client_id", "discovery_rmse", "discovery_rate"])
