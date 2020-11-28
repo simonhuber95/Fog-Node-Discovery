@@ -65,19 +65,19 @@ def main():
         node_id = uuid.uuid4()
         cell_id = uuid.uuid4()
         # in 50% of the time a cell tower has a FogNode
-        if my_random.randint(100) < 50:
+        if my_random.randint(1,100) < 50:
             node_x = my_random.randint(round(x_lower), round(x_upper))
             node_y = my_random.randint(round(y_lower), round(y_upper))
         # the other times the node is placede randomly in the area
         else:
-            node_x = node_entry["geometry"].x,
-            node_y = node_entry["geometry"].y,
+            node_x = node_entry["geometry"].x
+            node_y = node_entry["geometry"].y
             
         node = FogNode(env, id=node_id,
                     discovery_protocol=config["simulation"]["discovery_protocol"],
                     slots=node_entry["Antennas"],
-                    phy_x=node_x
-                    phy_y=node_y
+                    phy_x=node_x,
+                    phy_y=node_y,
                     verbose=config["simulation"]["verbose"])
         env.nodes.append({"id": node_id, "obj": node})
 

@@ -28,6 +28,7 @@ class MobileClient(object):
         self.latency_threshold = latency_threshold
         self.roundtrip_threshold = roundtrip_threshold
         self.timeout_threshold = timeout_threshold
+        self.rules = ReconnectionRules(self.env)
         # Event triggers search for closest node
         self.req_node_event = env.event()
         self.msg_pipe = simpy.FilterStore(env)
@@ -200,14 +201,16 @@ class MobileClient(object):
         Returns:
             boolean: If all the rules are fulfilled and the connection is currently valid
         """
-        Rules = ReconnectionRules(self.env)
+        Rules = self.rules
+        tmp_out_history = self.out_msg_history[-10:]
+        tmp_in_history = self.in_msg_history[-10:]
         check = all([
             Rules.latency_rule(self.id, self.closest_node_id,
                                threshold=self.latency_threshold),
             Rules.roundtrip_rule(
-                self.out_msg_history, self.in_msg_history, threshold=self.roundtrip_threshold),
+                tmp_out_history, tmp_in_history, threshold=self.roundtrip_threshold),
             Rules.timeout_rule(
-                self.out_msg_history, self.in_msg_history, threshold=self.roundtrip_threshold)
+                tmp_out_history, tmp_in_history, threshold=self.roundtrip_threshold)
         ])
         return check
 

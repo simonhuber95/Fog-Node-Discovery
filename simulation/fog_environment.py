@@ -218,8 +218,9 @@ class FogEnvironment(Environment):
 
         latencies = []
         for node in self.nodes:
-            lat = self.get_latency(client_id, node["obj"].id)
-            latencies.append({"id": node["id"], "lat": lat})
+            if(len(node["obj"].clients)<node["obj"].slots):
+                lat = self.get_latency(client_id, node["obj"].id)
+                latencies.append({"id": node["id"], "lat": lat})
 
         # Secondary sort by ID, primary sort b latency
         latencies = sorted(latencies, key=itemgetter('id'))
@@ -249,13 +250,13 @@ class FogEnvironment(Environment):
             yield self.timeout(1)
 
     def get_nearest_celltower(self, client):
-        nearest_celltowers = []
+        celltowers = []
         for celltower in self.celltowers:
             a_x, a_y = client.get_coordinates()
             b_x, b_y = celltower["obj"].get_coordinates()
             dist = self.get_distance(a_x, a_y, b_x, b_y)
-            nearest_cell.append({"id": celltower.get('id'), "distance": dist})
+            celltowers.append({"id": celltower.get('id'), "distance": dist})
         # Sort list by distance ascending
-        sorted_celltowers = sorted(neighbours, key=itemgetter('distance'))
+        sorted_celltowers = sorted(celltowers, key=itemgetter('distance'))
         nearest_celltower = sorted_celltowers.pop(0)
         return nearest_celltower.get('id'), nearest_celltower.get('distance')

@@ -330,7 +330,7 @@ class FogNode(object):
         self.neighbours = self.env.get_neighbours(self)
         while(True):
             # Search for random node, which is not self as proposed by Dabek et al at 50% of the time, otherwise probe neighbourhood
-            if my_random.randint(100) < 50:
+            if my_random.randint(1, 100) < 50:
                 while(True):
                     probe_node = self.env.get_random_node()
                     if(probe_node != self.id):
