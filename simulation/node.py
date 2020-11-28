@@ -12,11 +12,12 @@ import numpy as np
 
 
 class FogNode(object):
-    def __init__(self, env, id, discovery_protocol, slots, phy_x=4632239.86, phy_y=5826584.42, verbose=True):
+    def __init__(self, env, id, discovery_protocol, slots, hardware = 2, phy_x=4632239.86, phy_y=5826584.42, verbose=True):
         self.env = env
         self.id = id
         self.discovery_protocol = discovery_protocol
-        self.slots = slots
+        self.slots = max(1, slots)
+        self.hardware = hardware
         self.clients = [] # {'id', 'timestamp'}
         self.msg_pipe = simpy.Store(env)
         self.phy_x = phy_x
@@ -30,7 +31,7 @@ class FogNode(object):
         # List of all targets the node is currently pinging
         self.meridian_pings = []
         self.gossip = [{"id": self.id, "position": self.virtual_position,
-                        "timestamp": env.now, "type": type(self).__name__}]
+                        "timestamp": env.now, "type": type(self).__name__, "available_slots": self.slots}]
 
         # Performance measures
         self.probe_performance = np.nan
@@ -122,10 +123,10 @@ class FogNode(object):
         # Calculating the closest node based on the vivaldi virtual coordinates
         elif(self.discovery_protocol == "vivaldi"):
             estimates = []
-            for node in filter(lambda x: x['type'] == type(self).__name__, self.gossip):
-                cj = node["position"]
+            for node in filter(lambda x: x.get('type') == type(self).__name__ and x.get("available_slots") > 0, self.gossip):
+                cj = node.get("position")
                 est_rtt = cj.estimateRTT(client.get_virtual_position())
-                estimates.append({"id": node["id"], "rtt": est_rtt})
+                estimates.append({"id": nodeget('id'), "rtt": est_rtt})
             sorted_estimates = sorted(estimates, key=itemgetter('rtt'))
             closest_node_id = sorted_estimates[0]["id"]
 
@@ -181,7 +182,7 @@ class FogNode(object):
                     self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response=True, prev_msg=in_msg)
                 self.out_msg_history.append(out_msg)
                 
-            # Message type 2 = Node Request -> Trigger search for closest node via event
+            # Message type 2 = Node Request -> Trigger search for closest node
             elif(in_msg.msg_type == 2):
                 self.meridian_get_closest_node(in_msg)
 
@@ -217,7 +218,10 @@ class FogNode(object):
                     if request:
                         request.get('measures').append(
                             {'latency': d_latency, 'member': in_msg.send_id})
-                else:
+                        
+                # Only take part in the probing process to a client if node still has the resscource for it
+                # By doing this we ensure no more clients are forwarded to this node
+                elif len(self.clients) < self.slots:
                     # Append ping information to short memory
                     target = in_msg.body.get('target')
                     self.meridian_pings.append(
@@ -271,6 +275,18 @@ class FogNode(object):
         self.discovery_performance = time.perf_counter() - start
 
     def await_meridian_pings(self, target, d_latency, orig_msg):
+        """The node has issued other nodes to ping the target.
+        Like elaborated in the meridian paper we wait (2*beta + 1)*d timesteps until we forward the best node to the target
+        Nodes with no slots available simply do not answer and therefore are ignored in this process
+
+        Args:
+            target (target_id): ID of the target, usually a client
+            d_latency (float): latency to the target
+            orig_msg (Message): original message from the closest node request
+
+        Yields:
+            simpy.events.timeout: Waiting the given time
+        """
         waiting_time = (2*self.virtual_position.beta + 1)*d_latency
         yield self.env.timeout((waiting_time))
         start = time.perf_counter()
@@ -279,12 +295,10 @@ class FogNode(object):
         if(requests.get('measures')):
             measures = requests.get('measures')
             best_node = min(measures, key=lambda x: x['latency'])
-            # print("Best node: ", best_node)
             best_node_id = best_node.get('member')
             msg = self.env.send_message(
                 self.id, best_node_id, msg=target, gossip=self.gossip, msg_type=2, prev_msg=orig_msg)
         else:
-            # print("I am the best")
             msg = self.env.send_message(self.id, target,
                                         self.id, gossip=self.gossip, response=True, msg_type=2, prev_msg=orig_msg)
         self.meridian_requests.remove(requests)
@@ -316,7 +330,7 @@ class FogNode(object):
         self.neighbours = self.env.get_neighbours(self)
         while(True):
             # Search for random node, which is not self as proposed by Dabek et al at 50% of the time, otherwise probe neighbourhood
-            if my_random.randrange(100) < 50:
+            if my_random.randint(100) < 50:
                 while(True):
                     probe_node = self.env.get_random_node()
                     if(probe_node != self.id):
@@ -365,7 +379,7 @@ class FogNode(object):
         Returns:
             float: Bandwidth in Gbps between (0,1]
         """
-        return min(1, 1 - (1/(self.slots)) * len(self.clients) - 1)
+        return min(1, 1 - (1/(self.slots)) * (len(self.clients) - 1))
 
     def calculate_rtt(self, in_msg):
         """Calculates the round-trip-time (rtt) of the incoming message by comparing timestamps with the out message

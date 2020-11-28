@@ -11,11 +11,13 @@ import uuid
 import geopandas as gpd
 import yaml
 from pathlib import Path
+from random import Random
 
 from simulation.visualize import *
 # Set base path of the project
 
 def main():
+    my_random = Random()
     base_path = Path().absolute()
 
     # open the config.yaml as object
@@ -61,13 +63,33 @@ def main():
     print("Init Fog Nodes")
     for index, node_entry in filtered_nodes_gdf.iterrows():
         node_id = uuid.uuid4()
+        cell_id = uuid.uuid4()
+        # in 50% of the time a cell tower has a FogNode
+        if my_random.randint(100) < 50:
+            node_x = my_random.randint(round(x_lower), round(x_upper))
+            node_y = my_random.randint(round(y_lower), round(y_upper))
+        # the other times the node is placede randomly in the area
+        else:
+            node_x = node_entry["geometry"].x,
+            node_y = node_entry["geometry"].y,
+            
         node = FogNode(env, id=node_id,
+                    discovery_protocol=config["simulation"]["discovery_protocol"],
+                    slots=node_entry["Antennas"],
+                    phy_x=node_x
+                    phy_y=node_y
+                    verbose=config["simulation"]["verbose"])
+        env.nodes.append({"id": node_id, "obj": node})
+
+        celltower = FogNode(env, id=node_id,
                     discovery_protocol=config["simulation"]["discovery_protocol"],
                     slots=node_entry["Antennas"],
                     phy_x=node_entry["geometry"].x,
                     phy_y=node_entry["geometry"].y,
                     verbose=config["simulation"]["verbose"])
-        env.nodes.append({"id": node_id, "obj": node})
+        env.celltowers.append({"id": cell_id, "obj": celltower})
+            
+        
     # Looping over the first x entries
     print("Init Mobile Clients")
 

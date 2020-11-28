@@ -16,6 +16,7 @@ class FogEnvironment(Environment):
         self.config = config
         self.clients = []
         self.nodes = []
+        self.celltowers = []
         self.boundaries = tuple()
         self.messages = []
         self.monitor_process = self.process(self.monitor())
@@ -70,8 +71,7 @@ class FogEnvironment(Environment):
         my_random.seed(str(self.now) + str(send_id) + str(rec_id))
         sender = self.get_participant(send_id)
         receiver = self.get_participant(rec_id)
-        
-        
+
         # Single hop/Device2Device Connection via 5G bands
         if self.config["simulation"]["connection"] == "single-hop":
             distance = self.get_distance(
@@ -79,25 +79,29 @@ class FogEnvironment(Environment):
             high_band_distance = self.config["bands"]["5G-High"]["distance"]
             medium_band_distance = self.config["bands"]["5G-Medium"]["distance"]
             low_band_distance = self.config["bands"]["5G-Low"]["distance"]
-            
+
             # Deviaton formular: (distance - Distmin)/(Distmax -Distmin) * (MaxDev - MinDev) + MinDev
             # Squashes the distance from the participant between [MinDev, MaxDev] and is multiplies with the standard latency
             # High-Band 5G
             if(distance < high_band_distance):
-                high_deviation = (distance - 0)/(high_band_distance - 0) * (1.25 - 0.75) + 0.75
-                return self.config["bands"]["5G-High"]["latency"]/1000 * my_random.randint(90,110)/100 * high_deviation
+                high_deviation = (distance - 0) / \
+                    (high_band_distance - 0) * (1.25 - 0.75) + 0.75
+                return self.config["bands"]["5G-High"]["latency"]/1000 * my_random.randint(90, 110)/100 * high_deviation
             # Medium-Band 5G
             elif (distance < medium_band_distance):
-                medium_deviation = (distance - high_band_distance)/(medium_band_distance - high_band_distance) * (1.25 - 0.75) + 0.75
-                return self.config["bands"]["5G-Medium"]["latency"]/1000 * my_random.randint(90,110)/100 * medium_deviation
+                medium_deviation = (distance - high_band_distance)/(
+                    medium_band_distance - high_band_distance) * (1.25 - 0.75) + 0.75
+                return self.config["bands"]["5G-Medium"]["latency"]/1000 * my_random.randint(90, 110)/100 * medium_deviation
             # Low-Band 5G
             elif (distance < low_band_distance):
-                low_deviation = (distance - medium_band_distance)/(low_band_distance - medium_band_distance) * (1.25 - 0.75) + 0.75
-                return self.config["bands"]["5G-Low"]["latency"]/1000 * my_random.randint(90,110)/100 * low_deviation
+                low_deviation = (distance - medium_band_distance) / \
+                    (low_band_distance - medium_band_distance) * \
+                    (1.25 - 0.75) + 0.75
+                return self.config["bands"]["5G-Low"]["latency"]/1000 * my_random.randint(90, 110)/100 * low_deviation
             # 3G
             else:
                 return 0.15
-    
+
         # Latency calculation for multihop between client and node connection is the following:
         # Latency = Sum ( Transmission delay + Propagation + Processing + Queuing )
         # Transmission/Serialization delay = -0.008 * bandwidth Gbps + 0.088  (Gpbs is usually between 0.1 - 1 for end users)
@@ -107,15 +111,18 @@ class FogEnvironment(Environment):
         elif self.config["simulation"]["connection"] == "multi-hop":
             # Connection between 2 nodes the less good bandwidth is used
             if isinstance(sender, FogNode) and isinstance(receiver, FogNode):
-                bandwidth = min(sender.get_bandwidth(), receiver.get_bandwidth())
+                bandwidth = min(sender.get_bandwidth(),
+                                receiver.get_bandwidth())
                 transmission_delay = -0.008 * bandwidth + 0.088
-                propagation_delay = 0 * 0.0035 # basically no distance as we are connected via backhaul
-                processing_delay = node.hardware * 0.01 + 0.05
-                queuing_delay = 5 if 1/(2 * bandwidth) > else 1/(2 * bandwidth)
+                # basically no distance as we are connected via backhaul
+                propagation_delay = 0 * 0.0035
+                processing_delay = sender.hardware * 0.01 + 0.05
+                queuing_delay = min(5, 1/(2 * bandwidth))
             # Connection between client and node
             else:
                 # Checking which participant is Node and who is Client
-                client = sender if isinstance(sender, MobileClient) else receiver
+                client = sender if isinstance(
+                    sender, MobileClient) else receiver
                 node = sender if isinstance(sender, FogNode) else receiver
 
                 # Calculating the physical distance
@@ -123,11 +130,10 @@ class FogEnvironment(Environment):
                 transmission_delay = -0.008 * node.get_bandwidth() + 0.088
                 propagation_delay = distance * 0.0035
                 processing_delay = node.hardware * 0.01 + 0.05
-                queuing_delay = 5 if 1/(2 * node.get_bandwidth()) > else 1/(2 * node.get_bandwidth())
-            
+                queuing_delay = min(5, 1/(2 * node.get_bandwidth()))
+
             return (transmission_delay + propagation_delay + processing_delay + queuing_delay)/1000
 
-            
     def get_distance(self, send_x, send_y, rec_x, rec_y):
         """Calculates the physical distance between to points in meters
 
@@ -228,14 +234,15 @@ class FogEnvironment(Environment):
         modulus = runtime / 10
         timestamp = 0
         while(True):
-            
+
             # if(self.now == 0):
             #     print("Runtime: {}/{}".format(self.now, runtime))
             # elif(self.now % modulus == 0):
             #     print("Runtime: {}/{}".format(self.now, runtime))
-            duration = round(time.perf_counter() - timestamp,2)
+            duration = round(time.perf_counter() - timestamp, 2)
             timestamp = time.perf_counter()
-            print("Runtime: {}/{} in {} seconds with {} messages".format(self.now, runtime, duration, len(self.messages)))
+            print("Runtime: {}/{} in {} seconds with {} messages".format(self.now,
+                                                                         runtime, duration, len(self.messages)))
             # print("Runtime: {}/{} in {} seconds with".format(self.now, runtime, duration))
             # clear message history
             self.messages = []
