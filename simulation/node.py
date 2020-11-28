@@ -16,8 +16,8 @@ class FogNode(object):
         self.env = env
         self.id = id
         self.discovery_protocol = discovery_protocol
-        self.resource = Resource(env, 1 if slots < 1 else slots)
-        self.clients = [] # {'id', 'timestamp', 'request'}
+        self.slots = slots
+        self.clients = [] # {'id', 'timestamp'}
         self.msg_pipe = simpy.Store(env)
         self.phy_x = phy_x
         self.phy_y = phy_y
@@ -69,8 +69,19 @@ class FogNode(object):
             # Update gossip
             self.update_gossip(in_msg)
 
-            # Message type 1 = Regular Message from client, just reply
+            # Message type 1 = Regular Message from client
             if(in_msg.msg_type == 1):
+                # check if client is a current client
+                current_client = next((client for client in self.clients if client.get('id') == in_msg.send_id), None)
+                # Update if client is already registered
+                if current_client:
+                    current_client.update({'timestamp': self.env.now})
+                # Append to list if client is not already registered
+                elif len(self.clients < self.slots:
+                    self.clients.append({'id': in_msg.send_id, 'timestamp': self.env.now})
+                # if we have no capacity for the client we simply do not answer
+                else: 
+                    continue
                 out_msg = self.env.send_message(
                     self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response=True, prev_msg=in_msg)
                 self.out_msg_history.append(out_msg)
@@ -153,12 +164,23 @@ class FogNode(object):
             if(isinstance(sender, FogNode)):
                 self.update_virtual_position(in_msg)
 
-            # Message type 1 = Regular Message from client, just reply
+            # Message type 1 = Regular Message from client
             if(in_msg.msg_type == 1):
+                # check if client is a current client
+                current_client = next((client for client in self.clients if client.get('id') == in_msg.send_id), None)
+                # Update if client is already registered
+                if current_client:
+                    current_client.update({'timestamp': self.env.now})
+                # Append to list if client is not already registered
+                elif len(self.clients < self.slots:
+                    self.clients.append({'id': in_msg.send_id, 'timestamp': self.env.now})
+                # if we have no capacity for the client we simply do not answer
+                else: 
+                    continue
                 out_msg = self.env.send_message(
                     self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response=True, prev_msg=in_msg)
                 self.out_msg_history.append(out_msg)
-
+                
             # Message type 2 = Node Request -> Trigger search for closest node via event
             elif(in_msg.msg_type == 2):
                 self.meridian_get_closest_node(in_msg)
@@ -317,7 +339,6 @@ class FogNode(object):
             for client in self.clients:
                 if self.env.now - client.get('timestamp') > 2:
                     self.clients.remove(client)
-                    self.resource.release(client.get('request')) 
             yield self.env.timeout(1)
             
     def get_coordinates(self):
@@ -344,7 +365,7 @@ class FogNode(object):
         Returns:
             float: Bandwidth in Gbps between (0,1]
         """
-        return min(1, 1 - (1/(self.slots)) * self.resource.count - 1)
+        return min(1, 1 - (1/(self.slots)) * len(self.clients) - 1)
 
     def calculate_rtt(self, in_msg):
         """Calculates the round-trip-time (rtt) of the incoming message by comparing timestamps with the out message
