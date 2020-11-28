@@ -129,7 +129,7 @@ class MobileClient(object):
                     self.id, self.closest_node_id, "Client {} sends a task".format(self.id), gossip=self.gossip)
                 self.out_msg_history.append(out_msg)
             try:
-                yield self.env.timeout(my_random.randint(1, 3))
+                yield self.env.timeout(my_random.randint(5, 10)/10)
             except simpy.Interrupt:
                 return
             self.out_performance = time.perf_counter() - start

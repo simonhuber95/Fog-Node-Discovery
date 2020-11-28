@@ -17,6 +17,7 @@ class FogNode(object):
         self.id = id
         self.discovery_protocol = discovery_protocol
         self.resource = Resource(env, 1 if slots < 1 else slots)
+        self.clients = [] # {'id', 'timestamp', 'request'}
         self.msg_pipe = simpy.Store(env)
         self.phy_x = phy_x
         self.phy_y = phy_y
@@ -42,9 +43,9 @@ class FogNode(object):
             self.connect_process = env.process(self.vivaldi_connect())
         elif(discovery_protocol == "meridian"):
             self.connect_process = env.process(self.meridian_connect())
-            self.ring_management = env.process(
-                self.meridian_ring_management(10))
+            self.ring_management = env.process(self.meridian_ring_management(10))
         self.probe_network_process = env.process(self.probe_network())
+        self.monitor_process = env.process(self.monitor())
         if self.verbose:
             print("Fog Node {} active at x:{}, y: {}".format(
                 self.id, self.phy_x, self.phy_y))
@@ -310,6 +311,15 @@ class FogNode(object):
                 self.env.now + 1) if math.log(self.env.now + 1) < 2 else 2
             yield self.env.timeout(timeout + my_random.random())
 
+    def monitor(self):
+        while True:
+            # check every second if a client connection is outdated
+            for client in self.clients:
+                if self.env.now - client.get('timestamp') > 2:
+                    self.clients.remove(client)
+                    self.resource.release(client.get('request')) 
+            yield self.env.timeout(1)
+            
     def get_coordinates(self):
         """Returns the physical coordinates of the node
 
