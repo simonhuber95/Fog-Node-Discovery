@@ -88,7 +88,6 @@ def main():
                     phy_y=node_entry["geometry"].y,
                     verbose=config["simulation"]["verbose"])
         env.celltowers.append({"id": cell_id, "obj": celltower})
-            
         
     # Looping over the first x entries
     print("Init Mobile Clients")

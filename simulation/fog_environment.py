@@ -220,15 +220,14 @@ class FogEnvironment(Environment):
         for node in self.nodes:
             if(len(node["obj"].clients)<node["obj"].slots):
                 lat = self.get_latency(client_id, node["obj"].id)
-                latencies.append({"id": node["id"], "lat": lat})
+                latencies.append({"id": node["id"], "lat": lat, 'slots': node["obj"].slots, 'clients': len(node["obj"].clients)})
 
         # Secondary sort by ID, primary sort b latency
         latencies = sorted(latencies, key=itemgetter('id'))
         sorted_lat = sorted(latencies, key=itemgetter('lat'))
-
-        closest_node_id = sorted_lat[0]["id"]
-
-        return closest_node_id
+        closest_node_id = sorted_lat.pop(0)
+        
+        return closest_node_id.get("id")
 
     def monitor(self):
         runtime = self.config["simulation"]["runtime"]

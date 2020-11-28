@@ -109,7 +109,7 @@ class MobileClient(object):
         """
         my_random = Random(self.id)
         # wait until nodes are ready
-        yield self.env.timeout(5)
+        yield self.env.timeout(my_random.randint(4000, 7000)/1000)
 
         while (True):
             start = time.perf_counter()
