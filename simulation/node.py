@@ -77,7 +77,7 @@ class FogNode(object):
                 if current_client:
                     current_client.update({'timestamp': self.env.now})
                 # Append to list if client is not already registered
-                elif len(self.clients < self.slots:
+                elif len(self.clients) < self.slots:
                     self.clients.append({'id': in_msg.send_id, 'timestamp': self.env.now})
                 # if we have no capacity for the client we simply do not answer
                 else: 
@@ -172,7 +172,7 @@ class FogNode(object):
                 if current_client:
                     current_client.update({'timestamp': self.env.now})
                 # Append to list if client is not already registered
-                elif len(self.clients < self.slots:
+                elif len(self.clients) < self.slots:
                     self.clients.append({'id': in_msg.send_id, 'timestamp': self.env.now})
                 # if we have no capacity for the client we simply do not answer
                 else: 
@@ -390,20 +390,20 @@ class FogNode(object):
         in_gossip = in_msg.gossip
         for news in in_gossip:
             # If the news is not in own gossip add it
-            if not any(entry.get("id") == news["id"] for entry in self.gossip):
+            if not any(entry.get("id") == news.get("id") for entry in self.gossip):
                 self.gossip.append(news)
             # Otherwise update existing news
             else:
                 own_news = next(
                     (entry for entry in self.gossip if entry["id"] == news["id"]), None)
                 # keep own gossip up to date
-                if news["id"] == self.id:
+                if news.get("id") == self.id:
                     own_news.update(
-                        {"position": self.get_virtual_position(), "timestamp": self.env.now})
+                        {"position": self.get_virtual_position(), "timestamp": self.env.now, "available_slots": self.slots - len(self.clients)})
                 # Update news if it is older than incoming news
-                elif own_news["timestamp"] < news["timestamp"]:
+                elif own_news.get("timestamp") < news.get("timestamp"):
                     own_news.update(
-                        {"position": self.get_virtual_position(), "timestamp": self.env.now})
+                        {"position": news.get("position"), "timestamp": news.get("timestamp"), "available_slots": news.get("available_slots")})
                     if(self.discovery_protocol == "meridian" and news.get('type') == FogNode):
                         self.virtual_position.update_meridian(news)
 
