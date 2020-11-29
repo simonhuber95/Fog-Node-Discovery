@@ -60,7 +60,12 @@ class ReconnectionRules(object):
         if not filtered_out_history:
             return True
         last_out_msg = filtered_out_history[-1]
-        has_response = any(last_out_msg.id == message.prev_msg.id for message in in_history)
+        if not last_out_msg:
+            return True
+        if not in_history:
+            return True
+        filtered_in_history = list(filter(lambda message: message.msg_type == 1, in_history))
+        has_response = any(last_out_msg.id == message.prev_msg.id for message in filtered_in_history)
 
         # If Out Message has been sent longer than threshold and no answer is received
         if self.env.now - last_out_msg.timestamp > threshold:

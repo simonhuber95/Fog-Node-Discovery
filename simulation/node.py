@@ -88,7 +88,7 @@ class FogNode(object):
                     continue
                 
                 out_msg = self.env.send_message(
-                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response=True, prev_msg=in_msg)
+                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response=True, msg_type=1, prev_msg=in_msg)
                 self.out_msg_history.append(out_msg)
 
             # Message type 2 = Node Request -> Trigger search for closest node
@@ -188,7 +188,7 @@ class FogNode(object):
                 else:
                     continue
                 out_msg = self.env.send_message(
-                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response=True, prev_msg=in_msg)
+                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response=True, prev_msg=in_msg, msg_type=1)
                 self.out_msg_history.append(out_msg)
 
             # Message type 2 = Node Request -> Trigger search for closest node
