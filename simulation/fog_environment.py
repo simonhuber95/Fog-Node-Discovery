@@ -21,13 +21,17 @@ class FogEnvironment(Environment):
         self.messages = []
         self.monitor_process = self.process(self.monitor())
 
-    def get_participant(self, id):
+    def get_participant(self, id_x):
         """
         Getter for all participants in the network
         Parameter ID as string
         Returns the participant object for the given ID
         """
-        return next((elem for elem in [*self.clients, *self.nodes] if elem["id"] == id), None)["obj"]
+        entry = next(
+            (elem for elem in [*self.clients, *self.nodes] if elem["id"] == id_x), None)
+        if not entry:
+            return None
+        return entry.get("obj")
 
     def get_random_node(self):
         """
@@ -218,15 +222,21 @@ class FogEnvironment(Environment):
 
         latencies = []
         for node in self.nodes:
-            if(len(node["obj"].clients)<node["obj"].slots):
+            if(len(node["obj"].clients) < node["obj"].slots):
                 lat = self.get_latency(client_id, node["obj"].id)
-                latencies.append({"id": node["id"], "lat": lat, 'slots': node["obj"].slots, 'clients': len(node["obj"].clients)})
+                latencies.append(
+                    {"id": node["id"], "lat": lat, 'slots': node["obj"].slots, 'clients': len(node["obj"].clients)})
 
         # Secondary sort by ID, primary sort b latency
         latencies = sorted(latencies, key=itemgetter('id'))
         sorted_lat = sorted(latencies, key=itemgetter('lat'))
+        # When there is no node with an open slot we return None
+        # This only happens when there are more clients than slots in the whole scenario
+        if not sorted_lat:
+            return None
+
         closest_node_id = sorted_lat.pop(0)
-        
+
         return closest_node_id.get("id")
 
     def monitor(self):

@@ -43,9 +43,11 @@ class MobileClient(object):
             print("Client {}: active, current location x: {}, y: {}".format(
                 self.id, self.phy_x, self.phy_y))
         # Starting the operating processes
-        self.out_process = self.env.process(self.out_connect())
+        self.my_random = Random(self.id)
+        start_up = self.my_random.randint(3000, 10000)/1000
+        self.out_process = self.env.process(self.out_connect(start_up))
         self.in_process = self.env.process(self.in_connect())
-        self.move_process = self.env.process(self.move())
+        self.move_process = self.env.process(self.move(start_up))
         self.monitor_process = self.env.process(self.monitor())
         self.stop_event = env.event()
 
@@ -59,7 +61,9 @@ class MobileClient(object):
         self.out_performance = np.nan
         self.in_performance = np.nan
 
-    def move(self):
+    def move(self, start_up):
+        # wait until nodes are ready
+        yield self.env.timeout(start_up)
         if self.verbose:
             print("Client {}: starting move Process".format(self.id))
         # Iterate through every leg & activity in seperate process
@@ -99,7 +103,7 @@ class MobileClient(object):
         self.stop_event.succeed("No more activities")
         self.stop_event = self.env.event()
         
-    def out_connect(self):
+    def out_connect(self, start_up):
         """The process which handles outgoing messages
         If no node is registered or the connection is not valid anymore (see ReconnectionRules), the client sends a type 2 Message to a node
         else the client sends a task to the closest node
@@ -107,9 +111,9 @@ class MobileClient(object):
         Yields:
             simpy.timeout: Timeout event 
         """
-        my_random = Random(self.id)
+        
         # wait until nodes are ready
-        yield self.env.timeout(my_random.randint(4000, 7000)/1000)
+        yield self.env.timeout(start_up)
 
         while (True):
             start = time.perf_counter()
@@ -127,10 +131,10 @@ class MobileClient(object):
             # If closest node is registered, send messages to node
             if self.closest_node_id:
                 out_msg = self.env.send_message(
-                    self.id, self.closest_node_id, "Client {} sends a task".format(self.id), gossip=self.gossip)
+                self.id, self.closest_node_id, "Client {} sends a task".format(self.id), gossip=self.gossip)
                 self.out_msg_history.append(out_msg)
             try:
-                yield self.env.timeout(my_random.randint(5, 10)/10)
+                yield self.env.timeout(self.my_random.randint(5, 10)/10)
             except simpy.Interrupt:
                 return
             self.out_performance = time.perf_counter() - start
@@ -174,8 +178,10 @@ class MobileClient(object):
             elif(msg_type == 2):
                 if self.verbose:
                     print("Client {}: {}".format(self.id, in_msg))
-                self.closest_node_id = in_msg.body
-
+                closest_node_id = in_msg.body
+                # If there are no slots available the Node returns none, so we want to check that
+                if closest_node_id:
+                    self.closest_node_id = closest_node_id
             # Network probing performed by a node
             elif(msg_type == 3):
                 if self.verbose:
