@@ -5,6 +5,8 @@ from random import Random
 import random
 from operator import itemgetter
 from .message import Message
+from .client import MobileClient
+from .node import FogNode
 import time
 
 
@@ -14,17 +16,22 @@ class FogEnvironment(Environment):
         self.config = config
         self.clients = []
         self.nodes = []
+        self.celltowers = []
         self.boundaries = tuple()
         self.messages = []
         self.monitor_process = self.process(self.monitor())
 
-    def get_participant(self, id):
+    def get_participant(self, id_x):
         """
         Getter for all participants in the network
         Parameter ID as string
         Returns the participant object for the given ID
         """
-        return next((elem for elem in [*self.clients, *self.nodes] if elem["id"] == id), None)["obj"]
+        entry = next(
+            (elem for elem in [*self.clients, *self.nodes] if elem["id"] == id_x), None)
+        if not entry:
+            return None
+        return entry.get("obj")
 
     def get_random_node(self):
         """
@@ -68,31 +75,69 @@ class FogEnvironment(Environment):
         my_random.seed(str(self.now) + str(send_id) + str(rec_id))
         sender = self.get_participant(send_id)
         receiver = self.get_participant(rec_id)
-        distance = self.get_distance(
-            sender.phy_x, sender.phy_y, receiver.phy_x, receiver.phy_y)
-        high_band_distance = self.config["bands"]["5G-High"]["distance"]
-        medium_band_distance = self.config["bands"]["5G-Medium"]["distance"]
-        low_band_distance = self.config["bands"]["5G-Low"]["distance"]
-        
-        # Deviaton formular: (distance - Distmin)/(Distmax -Distmin) * (MaxDev - MinDev) + MinDev
-        # Squashes the distance from the participant between [MinDev, MaxDev] and is multiplies with the standard latency
-        # High-Band 5G
-        if(distance < high_band_distance):
-            high_deviation = (distance - 0)/(high_band_distance - 0) * (1.25 - 0.75) + 0.75
-            return self.config["bands"]["5G-High"]["latency"]/1000 * my_random.randint(90,110)/100 * high_deviation
-        # Medium-Band 5G
-        elif (distance < medium_band_distance):
-            medium_deviation = (distance - high_band_distance)/(medium_band_distance - high_band_distance) * (1.25 - 0.75) + 0.75
-            return self.config["bands"]["5G-Medium"]["latency"]/1000 * my_random.randint(90,110)/100 * medium_deviation
-        # Low-Band 5G
-        elif (distance < low_band_distance):
-            low_deviation = (distance - medium_band_distance)/(low_band_distance - medium_band_distance) * (1.25 - 0.75) + 0.75
-            return self.config["bands"]["5G-Low"]["latency"]/1000 * my_random.randint(90,110)/100 * low_deviation
-        # 3G
-        else:
-            return 0.2
-    
-     
+
+        # Single hop/Device2Device Connection via 5G bands
+        if self.config["simulation"]["connection"] == "single-hop":
+            distance = self.get_distance(
+                sender.phy_x, sender.phy_y, receiver.phy_x, receiver.phy_y)
+            high_band_distance = self.config["bands"]["5G-High"]["distance"]
+            medium_band_distance = self.config["bands"]["5G-Medium"]["distance"]
+            low_band_distance = self.config["bands"]["5G-Low"]["distance"]
+
+            # Deviaton formular: (distance - Distmin)/(Distmax -Distmin) * (MaxDev - MinDev) + MinDev
+            # Squashes the distance from the participant between [MinDev, MaxDev] and is multiplies with the standard latency
+            # High-Band 5G
+            if(distance < high_band_distance):
+                high_deviation = (distance - 0) / \
+                    (high_band_distance - 0) * (1.25 - 0.75) + 0.75
+                return self.config["bands"]["5G-High"]["latency"]/1000 * my_random.randint(90, 110)/100 * high_deviation
+            # Medium-Band 5G
+            elif (distance < medium_band_distance):
+                medium_deviation = (distance - high_band_distance)/(
+                    medium_band_distance - high_band_distance) * (1.25 - 0.75) + 0.75
+                return self.config["bands"]["5G-Medium"]["latency"]/1000 * my_random.randint(90, 110)/100 * medium_deviation
+            # Low-Band 5G
+            elif (distance < low_band_distance):
+                low_deviation = (distance - medium_band_distance) / \
+                    (low_band_distance - medium_band_distance) * \
+                    (1.25 - 0.75) + 0.75
+                return self.config["bands"]["5G-Low"]["latency"]/1000 * my_random.randint(90, 110)/100 * low_deviation
+            # 3G
+            else:
+                return 0.15
+
+        # Latency calculation for multihop between client and node connection is the following:
+        # Latency = Sum ( Transmission delay + Propagation + Processing + Queuing )
+        # Transmission/Serialization delay = -0.008 * bandwidth Gbps + 0.088  (Gpbs is usually between 0.1 - 1 for end users)
+        # Propagation = distance km * 0.0035 ms/km
+        # Processing = [0.010, 0.030]ms + Network error (= constant 0.5ms) -> depending on Hardware
+        # Queing = 1 / (1 * bandwidth Gbps) with upper limit of 5ms
+        elif self.config["simulation"]["connection"] == "multi-hop":
+            # Connection between 2 nodes the less good bandwidth is used
+            if isinstance(sender, FogNode) and isinstance(receiver, FogNode):
+                bandwidth = min(sender.get_bandwidth(),
+                                receiver.get_bandwidth())
+                transmission_delay = -0.008 * bandwidth + 0.088
+                # basically no distance as we are connected via backhaul
+                propagation_delay = 0 * 0.0035
+                processing_delay = sender.hardware * 0.01 + 0.05
+                queuing_delay = min(5, 1/(2 * bandwidth))
+            # Connection between client and node
+            else:
+                # Checking which participant is Node and who is Client
+                client = sender if isinstance(
+                    sender, MobileClient) else receiver
+                node = sender if isinstance(sender, FogNode) else receiver
+
+                # Calculating the physical distance
+                celltower_id, distance = self.get_nearest_celltower(client)
+                transmission_delay = -0.008 * node.get_bandwidth() + 0.088
+                propagation_delay = distance * 0.0035
+                processing_delay = node.hardware * 0.01 + 0.05
+                queuing_delay = min(5, 1/(2 * node.get_bandwidth()))
+
+            return (transmission_delay + propagation_delay + processing_delay + queuing_delay)/1000
+
     def get_distance(self, send_x, send_y, rec_x, rec_y):
         """Calculates the physical distance between to points in meters
 
@@ -165,34 +210,62 @@ class FogEnvironment(Environment):
         return sorted_neighbours[:4]
 
     def get_closest_node(self, client_id):
+        """Gets the closest node to the client based on the latency between client and Node
+        Used for the baseline protocol
+
+        Args:
+            client_id (UUID): UUID of the client
+
+        Returns:
+            UUID: UUID of the node
+        """
 
         latencies = []
         for node in self.nodes:
-            lat = self.get_latency(client_id, node["obj"].id)
-            latencies.append({"id": node["id"], "lat": lat})
+            if(len(node["obj"].clients) < node["obj"].slots):
+                lat = self.get_latency(client_id, node["obj"].id)
+                latencies.append(
+                    {"id": node["id"], "lat": lat, 'slots': node["obj"].slots, 'clients': len(node["obj"].clients)})
 
         # Secondary sort by ID, primary sort b latency
         latencies = sorted(latencies, key=itemgetter('id'))
         sorted_lat = sorted(latencies, key=itemgetter('lat'))
+        # When there is no node with an open slot we return None
+        # This only happens when there are more clients than slots in the whole scenario
+        if not sorted_lat:
+            return None
 
-        closest_node_id = sorted_lat[0]["id"]
+        closest_node_id = sorted_lat.pop(0)
 
-        return closest_node_id
+        return closest_node_id.get("id")
 
     def monitor(self):
         runtime = self.config["simulation"]["runtime"]
         modulus = runtime / 10
         timestamp = 0
         while(True):
-            
+
             # if(self.now == 0):
             #     print("Runtime: {}/{}".format(self.now, runtime))
             # elif(self.now % modulus == 0):
             #     print("Runtime: {}/{}".format(self.now, runtime))
-            duration = round(time.perf_counter() - timestamp,2)
+            duration = round(time.perf_counter() - timestamp, 2)
             timestamp = time.perf_counter()
-            print("Runtime: {}/{} in {} seconds with {} messages".format(self.now, runtime, duration, len(self.messages)))
+            print("Runtime: {}/{} in {} seconds with {} messages".format(self.now,
+                                                                         runtime, duration, len(self.messages)))
             # print("Runtime: {}/{} in {} seconds with".format(self.now, runtime, duration))
             # clear message history
             self.messages = []
             yield self.timeout(1)
+
+    def get_nearest_celltower(self, client):
+        celltowers = []
+        for celltower in self.celltowers:
+            a_x, a_y = client.get_coordinates()
+            b_x, b_y = celltower["obj"].get_coordinates()
+            dist = self.get_distance(a_x, a_y, b_x, b_y)
+            celltowers.append({"id": celltower.get('id'), "distance": dist})
+        # Sort list by distance ascending
+        sorted_celltowers = sorted(celltowers, key=itemgetter('distance'))
+        nearest_celltower = sorted_celltowers.pop(0)
+        return nearest_celltower.get('id'), nearest_celltower.get('distance')

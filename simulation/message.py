@@ -28,12 +28,20 @@ class Message(object):
         elif(self.response):
             prev_msg = self.prev_msg
             prev_opt_node = prev_msg.opt_node
-            opt_latency = self.env.get_latency(prev_opt_node, self.rec_id)
-            return prev_opt_node, opt_latency
+            if prev_opt_node:
+                opt_latency = self.env.get_latency(prev_opt_node, self.rec_id)
+                return prev_opt_node, opt_latency
+            # There is no optimal node because all slots are taken
+            else:
+                return None, None
         else:
             opt_node = self.env.get_closest_node(self.send_id)
-            opt_latency = self.env.get_latency(self.send_id, opt_node)
-            return opt_node, opt_latency
+            if opt_node:
+                opt_latency = self.env.get_latency(self.send_id, opt_node)
+                return opt_node, opt_latency
+            # There is no optimal node because all slots are taken
+            else:
+                return None, None
         
     def __str__(self):
         return "Message type {} from {} at {}: {}".format(self.msg_type, self.send_id, round(self.timestamp, 2), self.body)

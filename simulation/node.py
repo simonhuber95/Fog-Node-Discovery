@@ -12,16 +12,16 @@ import numpy as np
 
 
 class FogNode(object):
-    def __init__(self, env, id, discovery_protocol, slots, phy_x=4632239.86, phy_y=5826584.42, verbose=True):
+    def __init__(self, env, id, discovery_protocol, slots, hardware=2, phy_x=4632239.86, phy_y=5826584.42, verbose=True):
         self.env = env
         self.id = id
         self.discovery_protocol = discovery_protocol
-        self.resource = Resource(env, 1 if slots < 1 else slots)
+        self.slots = max(1, slots)
+        self.hardware = hardware
+        self.clients = []  # {'id', 'timestamp'}
         self.msg_pipe = simpy.Store(env)
-        self.probe_event = env.event()
         self.phy_x = phy_x
         self.phy_y = phy_y
-        self.connect_event = env.event()
         self.in_msg_history = []
         self.out_msg_history = []
         self.verbose = verbose
@@ -31,7 +31,7 @@ class FogNode(object):
         # List of all targets the node is currently pinging
         self.meridian_pings = []
         self.gossip = [{"id": self.id, "position": self.virtual_position,
-                        "timestamp": env.now, "type": type(self).__name__}]
+                        "timestamp": env.now, "type": type(self).__name__, "available_slots": self.slots}]
 
         # Performance measures
         self.probe_performance = np.nan
@@ -47,6 +47,7 @@ class FogNode(object):
             self.ring_management = env.process(
                 self.meridian_ring_management(10))
         self.probe_network_process = env.process(self.probe_network())
+        self.monitor_process = env.process(self.monitor())
         if self.verbose:
             print("Fog Node {} active at x:{}, y: {}".format(
                 self.id, self.phy_x, self.phy_y))
@@ -70,10 +71,24 @@ class FogNode(object):
             # Update gossip
             self.update_gossip(in_msg)
 
-            # Message type 1 = Regular Message from client, just reply
+            # Message type 1 = Regular Message from client
             if(in_msg.msg_type == 1):
+                # check if client is a current client
+                current_client = next(
+                    (client for client in self.clients if client.get('id') == in_msg.send_id), None)
+                # Update if client is already registered
+                if current_client:
+                    current_client.update({'timestamp': self.env.now})
+                # Append to list if client is not already registered
+                elif len(self.clients) < self.slots:
+                    self.clients.append(
+                        {'id': in_msg.send_id, 'timestamp': self.env.now})
+                # if we have no capacity for the client we simply do not answer
+                else:
+                    continue
+                
                 out_msg = self.env.send_message(
-                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response = True, prev_msg=in_msg)
+                    self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response=True, prev_msg=in_msg)
                 self.out_msg_history.append(out_msg)
 
             # Message type 2 = Node Request -> Trigger search for closest node
@@ -82,14 +97,14 @@ class FogNode(object):
 
             # Message type 3 = Network Probing -> update VivaldiPosition at response or respond at Request
             elif(in_msg.msg_type == 3):
-                # If there already exists a message with this ID it is a response from a node and the virtual position is updated
-                if(in_msg.prev_msg):
+                # If is a response from a node the virtual position is updated
+                if(in_msg.response):
                     self.update_virtual_position(in_msg)
 
-                # If there is no message with this ID it is a Request and node simply answers
+                # If it is a request we simply answer
                 else:
                     out_msg = self.env.send_message(
-                        self.id, in_msg.send_id, "Probe reply from Node", gossip=self.gossip, response = True, prev_msg=in_msg, msg_type=3)
+                        self.id, in_msg.send_id, "Probe reply from Node", gossip=self.gossip, response=True, prev_msg=in_msg, msg_type=3)
                     self.out_msg_history.append(out_msg)
 
             # unknown message type
@@ -112,18 +127,21 @@ class FogNode(object):
         # Calculating the closest node based on the vivaldi virtual coordinates
         elif(self.discovery_protocol == "vivaldi"):
             estimates = []
-            for node in filter(lambda x: x['type'] == type(self).__name__, self.gossip):
-                cj = node["position"]
+            for node in filter(lambda x: x.get('type') == type(self).__name__ and x.get("available_slots") > 0, self.gossip):
+                cj = node.get("position")
                 est_rtt = cj.estimateRTT(client.get_virtual_position())
-                estimates.append({"id": node["id"], "rtt": est_rtt})
+                estimates.append({"id": node.get('id'), "rtt": est_rtt})
             sorted_estimates = sorted(estimates, key=itemgetter('rtt'))
-            closest_node_id = sorted_estimates[0]["id"]
+            if sorted_estimates:
+                closest_node_id = sorted_estimates[0]["id"]
+            else:
+                closest_node_id = None
 
         # send message containing the closest node
         client_id = in_msg.send_id
         start = time.perf_counter()
         msg = self.env.send_message(self.id, client_id,
-                                    closest_node_id, gossip=self.gossip, msg_type=2, response = True, prev_msg=in_msg)
+                                    closest_node_id, gossip=self.gossip, msg_type=2, response=True, prev_msg=in_msg)
         self.discovery_performance = time.perf_counter() - start
 
     def meridian_connect(self):
@@ -154,13 +172,26 @@ class FogNode(object):
             if(isinstance(sender, FogNode)):
                 self.update_virtual_position(in_msg)
 
-            # Message type 1 = Regular Message from client, just reply
+            # Message type 1 = Regular Message from client
             if(in_msg.msg_type == 1):
+                # check if client is a current client
+                current_client = next(
+                    (client for client in self.clients if client.get('id') == in_msg.send_id), None)
+                # Update if client is already registered
+                if current_client:
+                    current_client.update({'timestamp': self.env.now})
+                # Append to list if client is not already registered
+                elif len(self.clients) < self.slots:
+                    self.clients.append(
+                        {'id': in_msg.send_id, 'timestamp': self.env.now})
+                # if we have no capacity for the client we simply do not answer
+                else:
+                    continue
                 out_msg = self.env.send_message(
                     self.id, in_msg.send_id, "Reply from node", gossip=self.gossip, response=True, prev_msg=in_msg)
                 self.out_msg_history.append(out_msg)
 
-            # Message type 2 = Node Request -> Trigger search for closest node via event
+            # Message type 2 = Node Request -> Trigger search for closest node
             elif(in_msg.msg_type == 2):
                 self.meridian_get_closest_node(in_msg)
 
@@ -196,7 +227,10 @@ class FogNode(object):
                     if request:
                         request.get('measures').append(
                             {'latency': d_latency, 'member': in_msg.send_id})
-                else:
+
+                # Only take part in the probing process to a client if node still has the resscource for it
+                # By doing this we ensure no more clients are forwarded to this node
+                elif len(self.clients) < self.slots:
                     # Append ping information to short memory
                     target = in_msg.body.get('target')
                     self.meridian_pings.append(
@@ -209,7 +243,7 @@ class FogNode(object):
                 if self.verbose:
                     print("Node {} received unknown message type: {}".format(
                         self.id, in_msg.msg_type))
-            
+
             self.connect_performance = time.perf_counter() - start
 
     def meridian_get_closest_node(self, in_msg):
@@ -248,8 +282,20 @@ class FogNode(object):
         self.env.process(self.await_meridian_pings(
             target, in_msg.latency, orig_msg))
         self.discovery_performance = time.perf_counter() - start
-        
+
     def await_meridian_pings(self, target, d_latency, orig_msg):
+        """The node has issued other nodes to ping the target.
+        Like elaborated in the meridian paper we wait (2*beta + 1)*d timesteps until we forward the best node to the target
+        Nodes with no slots available simply do not answer and therefore are ignored in this process
+
+        Args:
+            target (target_id): ID of the target, usually a client
+            d_latency (float): latency to the target
+            orig_msg (Message): original message from the closest node request
+
+        Yields:
+            simpy.events.timeout: Waiting the given time
+        """
         waiting_time = (2*self.virtual_position.beta + 1)*d_latency
         yield self.env.timeout((waiting_time))
         start = time.perf_counter()
@@ -258,17 +304,15 @@ class FogNode(object):
         if(requests.get('measures')):
             measures = requests.get('measures')
             best_node = min(measures, key=lambda x: x['latency'])
-            # print("Best node: ", best_node)
             best_node_id = best_node.get('member')
             msg = self.env.send_message(
                 self.id, best_node_id, msg=target, gossip=self.gossip, msg_type=2, prev_msg=orig_msg)
         else:
-            # print("I am the best")
             msg = self.env.send_message(self.id, target,
                                         self.id, gossip=self.gossip, response=True, msg_type=2, prev_msg=orig_msg)
         self.meridian_requests.remove(requests)
         self.await_performance = time.perf_counter() - start
-        
+
     def meridian_ring_management(self, period=30):
         # Startup timeout is random so nodes do the ring management at different timesteps
         yield self.env.timeout(Random().randint(10, 20) + Random().random())
@@ -283,19 +327,20 @@ class FogNode(object):
             simpy.Event.timeout: timeout event which decides the probing interval
         """
         my_random = Random(self.id)
+        yield self.env.timeout(my_random.randint(1,1000)/1000)
         # Initially probe every node in the network once. Is needed for meridian and cannot harm other protocols either
         for node in self.env.nodes:
             probe_node = node.get('id')
             # We dont want to send messages to ourself
             if probe_node != self.id:
                 out_msg = self.env.send_message(
-                    self.id, probe_node, "Probing network", gossip=self.gossip, msg_type=3)
+                    self.id, probe_node, "Probing network at start", gossip=self.gossip, response=False, msg_type=3)
                 self.out_msg_history.append(out_msg)
 
         self.neighbours = self.env.get_neighbours(self)
         while(True):
             # Search for random node, which is not self as proposed by Dabek et al at 50% of the time, otherwise probe neighbourhood
-            if my_random.randrange(100) < 50:
+            if my_random.randint(1, 100) < 50:
                 while(True):
                     probe_node = self.env.get_random_node()
                     if(probe_node != self.id):
@@ -303,7 +348,7 @@ class FogNode(object):
             else:
                 probe_node = random.choice(self.neighbours)["id"]
             out_msg = self.env.send_message(
-                self.id, probe_node, "Probing network", gossip=self.gossip, msg_type=3)
+                self.id, probe_node, "Probing network", gossip=self.gossip, response=False, msg_type=3)
             self.out_msg_history.append(out_msg)
             # unnecessary complex timeout for the probing process
             # idea is the longer the newtork is established the less probes are necessary
@@ -311,6 +356,14 @@ class FogNode(object):
             timeout = math.log(
                 self.env.now + 1) if math.log(self.env.now + 1) < 2 else 2
             yield self.env.timeout(timeout + my_random.random())
+
+    def monitor(self):
+        while True:
+            # check every second if a client connection is outdated
+            for client in self.clients:
+                if self.env.now - client.get('timestamp') > 2:
+                    self.clients.remove(client)
+            yield self.env.timeout(1)
 
     def get_coordinates(self):
         """Returns the physical coordinates of the node
@@ -328,6 +381,15 @@ class FogNode(object):
             other: the virtual position of the node
         """
         return self.virtual_position
+
+    def get_bandwidth(self):
+        """Calculates the current bandwith of the node depending on the amount of active connections and total amound of slots available
+        Bandwidth is reduced linearly the more Clients are connected
+
+        Returns:
+            float: Bandwidth in Gbps between (0,1]
+        """
+        return min(1, 1 - (1/(self.slots)) * (len(self.clients) - 1))
 
     def calculate_rtt(self, in_msg):
         """Calculates the round-trip-time (rtt) of the incoming message by comparing timestamps with the out message
@@ -352,20 +414,20 @@ class FogNode(object):
         in_gossip = in_msg.gossip
         for news in in_gossip:
             # If the news is not in own gossip add it
-            if not any(entry.get("id") == news["id"] for entry in self.gossip):
+            if not any(entry.get("id") == news.get("id") for entry in self.gossip):
                 self.gossip.append(news)
             # Otherwise update existing news
             else:
                 own_news = next(
                     (entry for entry in self.gossip if entry["id"] == news["id"]), None)
                 # keep own gossip up to date
-                if news["id"] == self.id:
+                if news.get("id") == self.id:
                     own_news.update(
-                        {"position": self.get_virtual_position(), "timestamp": self.env.now})
+                        {"position": self.get_virtual_position(), "timestamp": self.env.now, "available_slots": self.slots - len(self.clients)})
                 # Update news if it is older than incoming news
-                elif own_news["timestamp"] < news["timestamp"]:
+                elif own_news.get("timestamp") < news.get("timestamp"):
                     own_news.update(
-                        {"position": self.get_virtual_position(), "timestamp": self.env.now})
+                        {"position": news.get("position"), "timestamp": news.get("timestamp"), "available_slots": news.get("available_slots")})
                     if(self.discovery_protocol == "meridian" and news.get('type') == FogNode):
                         self.virtual_position.update_meridian(news)
 

@@ -47,22 +47,26 @@ class ReconnectionRules(object):
         # if not check: print("Roundtrip rule failed")
         return check 
 
-    def timeout_rule(self, out_history, in_history, threshold=1.5):
+    def timeout_rule(self, out_history, in_history, threshold=0.1):
         """Timeout Rule for Client. Checks if the time past for a non received answer exceeds the threshold
 
         Args:
             out_history (list): Outbound message history of client
             in_history (list): Inbound message history of client
-            threshold (int, optional): Threshold which represents the upper bound for the roundtrip time. Defaults to 1.
+            threshold (int, optional): Threshold which represents the upper bound for the roundtrip time. Defaults to 100ms.
         """
-        last_in_msg = in_history[-1]
-        out_msg = next(
-            (message for message in out_history if last_in_msg.prev_msg and message.id == last_in_msg.prev_msg.id), None)
-        # Message was no respone, so we dont care
-        if(not out_msg):
+        # We have not sent any messages yet
+        filtered_out_history = list(filter(lambda message: message.msg_type == 1, out_history))
+        if not filtered_out_history:
             return True
+        last_out_msg = filtered_out_history[-1]
+        has_response = any(last_out_msg.id == message.prev_msg.id for message in in_history)
+
         # If Out Message has been sent longer than threshold and no answer is received
-        if(self.env.now - out_msg.timestamp > threshold and not last_in_msg):
-            return False
+        if self.env.now - last_out_msg.timestamp > threshold:
+            if has_response:
+                return True
+            else:
+                return False
         else:
             return True
