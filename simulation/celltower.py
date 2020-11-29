@@ -12,7 +12,7 @@ import numpy as np
 
 
 class Celltower(object):
-    def __init__(self, env, id, discovery_protocol, phy_x=4632239.86, phy_y=5826584.42, verbose=False):
+    def __init__(self, env, id, phy_x=4632239.86, phy_y=5826584.42, verbose=False):
         self.env = env
         self.id = id
         self.phy_x = phy_x

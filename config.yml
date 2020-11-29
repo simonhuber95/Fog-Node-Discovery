@@ -1,5 +1,5 @@
 simulation:
-  runtime: 30 # in seconds
+  runtime: 600 # in seconds
   area: 1500 # x and y translation in meter of random selected area
   area_selection: center # random or center
   verbose: False
@@ -8,14 +8,14 @@ simulation:
 clients:
   path: data/berlin-v5.4-1pct.plans.xml
   max_clients: 200
-  client_ratio: 1.5
-  latency_threshold: 0.04
-  roundtrip_threshold: 0.2
-  timeout_threshold: 1
+  client_ratio: 0.7
+  latency_threshold: 0.006
+  roundtrip_threshold: 0.010
+  timeout_threshold: 0.500
 nodes:
   path: data/cell_towers/cell_towers.shp
   min_nodes: 1
-  slot_scaler: 0.1
+  slot_scaler: 1
 map:
   city: data/berlin-latest-free/gis_osm_places_a_free_1.shp
   roads: data/berlin-latest-free/gis_osm_roads_free_1.shp

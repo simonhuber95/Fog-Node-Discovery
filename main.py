@@ -3,6 +3,7 @@
 import simpy
 from simulation.client import MobileClient
 from simulation.node import FogNode
+from simulation.celltower import Celltower
 from simulation.metrics import Metrics
 from simulation.dummy import Dummy
 from simulation.fog_environment import FogEnvironment
@@ -84,9 +85,7 @@ def main():
                     verbose=config["simulation"]["verbose"])
         env.nodes.append({"id": node_id, "obj": node})
         total_slots += math.ceil(node_entry["Antennas"] * config["nodes"]["slot_scaler"])
-        celltower = FogNode(env, id=node_id,
-                    discovery_protocol=config["simulation"]["discovery_protocol"],
-                    slots=node_entry["Antennas"],
+        celltower = Celltower(env, id=cell_id,
                     phy_x=node_entry["geometry"].x,
                     phy_y=node_entry["geometry"].y,
                     verbose=config["simulation"]["verbose"])
