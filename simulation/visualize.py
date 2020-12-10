@@ -6,6 +6,7 @@ plt.style.use('ggplot')
 
 
 def visualize_movements(env, map_file=None, EPSG="EPSG:31468"):
+    img = plt.imread("Maps_Background.png")
     plt.ion()
     fig, ax = plt.subplots()
     client_x, client_y = [], []
@@ -13,6 +14,7 @@ def visualize_movements(env, map_file=None, EPSG="EPSG:31468"):
     node_x, node_y = [], []
     node_sc = ax.scatter(node_x, node_y)
     (x_lower, x_upper, y_lower, y_upper) = env.boundaries
+    ax.imshow(img)
     plt.xlim(x_lower, x_upper)
     plt.ylim(y_lower, y_upper)
     plt.draw()
@@ -32,6 +34,7 @@ def visualize_movements(env, map_file=None, EPSG="EPSG:31468"):
         node_sc.set_offsets(np.c_[node_x, node_y])
         fig.canvas.draw_idle()
         ax.set_title(env.now)
+        ax.imshow(img, extent = [x_lower, x_upper, y_lower, y_upper])
         plt.pause(0.001)
         yield env.timeout(5)
 

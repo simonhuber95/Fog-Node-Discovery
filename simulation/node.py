@@ -38,6 +38,7 @@ class FogNode(object):
         self.connect_performance = np.nan
         self.discovery_performance = np.nan
         self.await_performance = np.nan
+        self.workload = []
 
         # Start the processes
         if(discovery_protocol == "vivaldi" or discovery_protocol == "baseline" or discovery_protocol == "random"):
@@ -366,6 +367,9 @@ class FogNode(object):
             for client in self.clients:
                 if self.env.now - client.get('timestamp') > 2:
                     self.clients.remove(client)
+                
+            # append current workload to list
+            self.workload.append({'timestamp': round(self.env.now), 'workload': len(self.clients)/self.slots})
             yield self.env.timeout(1)
 
     def get_coordinates(self):
