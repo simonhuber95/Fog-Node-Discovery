@@ -38,9 +38,10 @@ class FogNode(object):
         self.connect_performance = np.nan
         self.discovery_performance = np.nan
         self.await_performance = np.nan
+        self.workload = []
 
         # Start the processes
-        if(discovery_protocol == "vivaldi" or discovery_protocol == "baseline"):
+        if(discovery_protocol == "vivaldi" or discovery_protocol == "baseline" or discovery_protocol == "random"):
             self.connect_process = env.process(self.vivaldi_connect())
         elif(discovery_protocol == "meridian"):
             self.connect_process = env.process(self.meridian_connect())
@@ -123,6 +124,9 @@ class FogNode(object):
         # Should not be used for realisitic measurements but as a baseline to compare other protocols to
         if (self.discovery_protocol == "baseline"):
             closest_node_id = self.env.get_closest_node(client.id)
+            
+        if (self.discovery_protocol == "random"):
+            closest_node_id = self.env.get_random_node()
 
         # Calculating the closest node based on the vivaldi virtual coordinates
         elif(self.discovery_protocol == "vivaldi"):
@@ -363,6 +367,9 @@ class FogNode(object):
             for client in self.clients:
                 if self.env.now - client.get('timestamp') > 2:
                     self.clients.remove(client)
+                
+            # append current workload to list
+            self.workload.append({'timestamp': round(self.env.now), 'workload': len(self.clients)/self.slots})
             yield self.env.timeout(1)
 
     def get_coordinates(self):

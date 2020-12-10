@@ -113,8 +113,10 @@ class FogEnvironment(Environment):
         # Processing = [0.010, 0.030]ms + Network error (= constant 0.5ms) -> depending on Hardware
         # Queing = 1 / (1 * bandwidth Gbps) with upper limit of 5ms
         elif self.config["simulation"]["connection"] == "multi-hop":
+
             # Connection between 2 nodes the less good bandwidth is used
             if isinstance(sender, FogNode) and isinstance(receiver, FogNode):
+
                 bandwidth = min(sender.get_bandwidth(),
                                 receiver.get_bandwidth())
                 transmission_delay = -0.008 * bandwidth + 0.088
@@ -129,10 +131,12 @@ class FogEnvironment(Environment):
                     sender, MobileClient) else receiver
                 node = sender if isinstance(sender, FogNode) else receiver
 
-                # Calculating the physical distance
-                celltower_id, distance = self.get_nearest_celltower(client)
+                # Calculating the physical distance from each participant to the cell tower
+                celltower_id_cl, distance_cl = self.get_nearest_celltower(client)
+                celltower_id_n, distance_n = self.get_nearest_celltower(node)
+                distance = distance_cl + distance_n
                 transmission_delay = -0.008 * node.get_bandwidth() + 0.088
-                propagation_delay = distance * 0.0035
+                propagation_delay = distance/1000 * 0.0035
                 processing_delay = node.hardware * 0.01 + 0.05
                 queuing_delay = min(5, 1/(2 * node.get_bandwidth()))
 

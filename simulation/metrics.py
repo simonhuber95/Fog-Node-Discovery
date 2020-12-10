@@ -172,6 +172,24 @@ class Metrics(object):
                 {"client_id": client["obj"].id, "discovery_rmse": rmse, "discovery_rate": round(opt_rate, 2)})
         return pd.DataFrame(data=data, columns=["client_id", "discovery_rmse", "discovery_rate"])
 
+    def collect_workload_deviation(self):
+        """Computes the mean-square-error for every message from type 2 of the optimal latency and the latency to the suggested node
+        Computes the percentage how often the client is suggested the perfect node
+
+        Returns:
+            DataFrame: DataFrame filled with the latency-mse and perfect suggestion rate per client
+        """
+        data = []
+        for node in self.env.nodes:
+            for entry in node.get("obj").workload:
+                data.append(
+                    {"timestamp": entry.get('timestamp'), "workload": entry.get('workload')})
+                
+        df = pd.DataFrame(data=data, columns=["timestamp", "workload"])
+        df = df.groupby("timestamp").agg(['std','mean', 'min', 'max'])
+        return df
+    
+
     def collect_error_over_time(self):
         """Computes the mean-square-error for every message from type 2 of the optimal latency and the latency to the suggestes node
         Computes the percentage how often the client is suggested the perfect node

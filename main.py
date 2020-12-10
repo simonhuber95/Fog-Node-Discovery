@@ -90,6 +90,8 @@ def main():
                     phy_y=node_entry["geometry"].y,
                     verbose=config["simulation"]["verbose"])
         env.celltowers.append({"id": cell_id, "obj": celltower})
+    
+    print("Active Fog Nodes: {} with {} slots".format(len(env.nodes), total_slots))
         
     # Looping over the first x entries
     print("Init Mobile Clients")
@@ -117,30 +119,27 @@ def main():
     print("Active clients: ", len(env.clients))
 
     # viz_process1 = env.process(visualize_vivaldi(env))
-    vz_process2 = env.process(visualize_movements(env))
+    # vz_process2 = env.process(visualize_movements(env))
     # vz_process3 = env.process(visualize_client_performance(env, config["simulation"]["runtime"]))
     # vz_process4 = env.process(visualize_node_performance(env, config["simulation"]["runtime"]))
 
     # Run Simulation
     env.run(until=config["simulation"]["runtime"])
-    # Printing metrics
-    metrics = Metrics(env).all()
-    metrics = metrics.dropna()
-    metrics.to_csv("Metrics_{}_{}ms.csv".format(config["simulation"]["discovery_protocol"], config["clients"]["latency_threshold"] * 1000))
-    print(metrics)
+    
+    metrics_collector = Metrics(env)
+    # Collecting client metrics
+    client_metrics = metrics_collector.all()
+    client_metrics = client_metrics.dropna()
+    client_metrics.to_csv("Client_Metrics_{}_{}ms.csv".format(config["simulation"]["discovery_protocol"], config["clients"]["client_ratio"]))
+    print(client_metrics)
+    
+    # Collecting Node metrics
+    node_metrics = metrics_collector.collect_workload_deviation()
+    node_metrics.to_csv("Node_Metrics_{}_{}ms.csv".format(config["simulation"]["discovery_protocol"], config["clients"]["client_ratio"]))
+    print(node_metrics)
+    # metrics_collector.collect_error_over_time().plot()
+    # metrics_collector.collect_opt_choice_over_time().plot()
 
-    # Metrics(env).collect_error_over_time().plot()
-    # Metrics(env).collect_opt_choice_over_time().plot()
-
-
-    # Reading road layout for Berlin to distribute the nodes
-    # roads = gpd.read_file(roads_path)
-    # roads = roads.to_crs(epsg="31468")
-    # Retrieving the boundaries of Berlin
-    # pd.options.display.float_format = "{:.4f}".format
-    # boundaries = roads["geometry"].bounds
-    # print(boundaries.min())
-    # print(boundaries.max())
 
 if __name__ == "__main__":
     # execute only if run as a script

@@ -82,7 +82,7 @@ class MobileClient(object):
             vel_x = dist_x / duration
             vel_y = dist_y / duration
             # skip this leg if we are not going anywhere, threshold of 10 because sometimes its weird
-            if dist_x == 10 and dist_y == 10:
+            if -10 < dist_x < 10 and -10 < dist_y < 10:
                 continue
             # Moving until x and y match the end point of the leg
             while(round(to_x, 2) != round(self.phy_x, 2) and round(to_y, 2) != round(self.phy_y, 2)):
