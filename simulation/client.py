@@ -20,7 +20,7 @@ class MobileClient(object):
         """
         self.env = env
         self.id = id
-        self.plan = plan
+        self.plan = plan.findall('trip')
         self.connected = False
         self.verbose = verbose
         # ID of closest node as string
@@ -35,10 +35,10 @@ class MobileClient(object):
         self.in_msg_history = []
         self.out_msg_history = []
         # Set coordinates to first activity in plan
-        self.phy_x = float(plan.find('activity').attrib["x"])
-        self.phy_y = float(plan.find('activity').attrib["y"])
-        # Zip all activities and legs into pairs (except for initial activity used for init coordinates)
-        self.pairs = zip(plan.findall('activity')[1:], plan.findall('leg'))
+        self.phy_x = float(plan.find('trip').attrib["x"])
+        self.phy_y = float(plan.find('trip').attrib["y"])
+        # Zip all activities and legs into pairs (except for initial activity used for init coordinates) only used for non reduced plan
+        # self.pairs = zip(plan.findall('activity')[1:], plan.findall('leg'))
         if self.verbose:
             print("Client {}: active, current location x: {}, y: {}".format(
                 self.id, self.phy_x, self.phy_y))
@@ -60,6 +60,7 @@ class MobileClient(object):
         self.move_performance = np.nan
         self.out_performance = np.nan
         self.in_performance = np.nan
+        
 
     def move(self, start_up):
         # wait until nodes are ready
@@ -67,12 +68,13 @@ class MobileClient(object):
         if self.verbose:
             print("Client {}: starting move Process".format(self.id))
         # Iterate through every leg & activity in seperate process
-        for activity, leg in self.pairs:
-            entry = self.get_entry_from_data(activity=activity, leg=leg)
-            duration = entry['trav_time']
-            # distance = entry['distance']
-            to_x = entry['x']
-            to_y = entry['y']
+        #for activity, leg in self.pairs:
+        for trip in self.plan:
+            # entry = self.get_entry_from_data(activity=activity, leg=leg)
+            trav_time = trip.attrib['trav_time']
+            duration = sum(x * int(t) for x, t in zip([3600, 60, 1], trav_time.split(":")))
+            to_x = float(trip.attrib['x'])
+            to_y = float(trip.attrib['y'])
             # skip this leg, if the duration is 0
             if(duration < 1):
                 continue
@@ -222,7 +224,7 @@ class MobileClient(object):
 
     def get_entry_from_data(self, activity, leg):
         """Extracts a combined entry from a touple of one activity and one leg.
-
+        Deprecated as this uses the non reduced OpenBerlinScenario xml file
         Args:
             activity (XML Elemenent): The activity element of the open berlin scenario
             leg (XML Element): The leg element prior to the activity of the open berlin scenario

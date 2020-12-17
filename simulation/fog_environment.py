@@ -138,7 +138,7 @@ class FogEnvironment(Environment):
                 transmission_delay = -0.008 * node.get_bandwidth() + 0.088
                 propagation_delay = distance/1000 * 0.0035
                 processing_delay = node.hardware * 0.01 + 0.05
-                queuing_delay = min(5, 1/(2 * node.get_bandwidth()))
+                queuing_delay = min(50, 1/(2 * node.get_bandwidth()))
 
             return (transmission_delay + propagation_delay + processing_delay + queuing_delay)/1000
 
@@ -239,9 +239,9 @@ class FogEnvironment(Environment):
         if not sorted_lat:
             return None
 
-        closest_node_id = sorted_lat.pop(0)
-
-        return closest_node_id.get("id")
+        closest_node = sorted_lat.pop(0)
+        # print("closest node {} has a current workload of {}".format(closest_node.get("id"), closest_node.get('clients')/closest_node.get('slots')))
+        return closest_node.get("id")
 
     def monitor(self):
         runtime = self.config["simulation"]["runtime"]

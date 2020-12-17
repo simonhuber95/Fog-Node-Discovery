@@ -80,6 +80,7 @@ def main():
         node = FogNode(env, id=node_id,
                     discovery_protocol=config["simulation"]["discovery_protocol"],
                     slots=math.ceil(node_entry["Antennas"] * config["nodes"]["slot_scaler"]),
+                    hardware = random.randint(1,3)
                     phy_x=node_x,
                     phy_y=node_y,
                     verbose=config["simulation"]["verbose"])
@@ -100,11 +101,11 @@ def main():
     client_ratio = config["clients"]["client_ratio"]
     max_clients = min(total_slots * client_ratio, max_clients) if type(max_clients) == type(total_slots) else total_slots * client_ratio
     max_clients = round(max_clients)
-    for client in client_data.getroot().iterfind('person'):
-        client_plan = client.find("plan")
-        if(x_lower < float(client_plan.find('activity').attrib["x"]) < x_upper and
-        y_lower < float(client_plan.find('activity').attrib["y"]) < y_upper):
-            client_id = client.get("id")
+    for client_plan in client_data.getroot().iterfind('person'):
+        # client_plan = client.find("plan")
+        if(x_lower < float(client_plan.find('trip').attrib["x"]) < x_upper and
+        y_lower < float(client_plan.find('trip').attrib["y"]) < y_upper):
+            client_id = client_plan.get("id")
             client = MobileClient(env, id=client_id, plan=client_plan,
                                 discovery_protocol=config["simulation"]["discovery_protocol"],
                                 latency_threshold=config["clients"]["latency_threshold"],
@@ -122,23 +123,30 @@ def main():
     # vz_process2 = env.process(visualize_movements(env))
     # vz_process3 = env.process(visualize_client_performance(env, config["simulation"]["runtime"]))
     # vz_process4 = env.process(visualize_node_performance(env, config["simulation"]["runtime"]))
+    # vz_process5 = env.process(visualize_latency_over_time(env, config["simulation"]["runtime"]))
+    # vz_process6 = env.process(visualize_reconnections_over_time(env, config["simulation"]["runtime"]))
+    # vz_process6 = env.process(full_nodes_over_time(env, config["simulation"]["runtime"]))
+    # vz_process7 = env.process(unique_discovery_over_time(env, config["simulation"]["runtime"]))
 
     # Run Simulation
     env.run(until=config["simulation"]["runtime"])
     
     metrics_collector = Metrics(env)
     # Collecting client metrics
-    client_metrics = metrics_collector.all()
+    client_metrics = metrics_collector.all_client()
     client_metrics = client_metrics.dropna()
-    client_metrics.to_csv("Client_Metrics_{}_{}ms.csv".format(config["simulation"]["discovery_protocol"], config["clients"]["client_ratio"]))
+    client_metrics.to_csv("Client_Metrics_{}_{}.csv".format(config["simulation"]["discovery_protocol"], config["clients"]["client_ratio"]))
     print(client_metrics)
     
-    # Collecting Node metrics
-    node_metrics = metrics_collector.collect_workload_deviation()
-    node_metrics.to_csv("Node_Metrics_{}_{}ms.csv".format(config["simulation"]["discovery_protocol"], config["clients"]["client_ratio"]))
+    # Collecting over time metrics
+    time_metrics = metrics_collector.all_time()
+    time_metrics.to_csv("Time_Metrics_{}_{}.csv".format(config["simulation"]["discovery_protocol"], config["clients"]["client_ratio"]))
+    print(time_metrics)
+
+    # Collecting Node
+    node_metrics = metrics_collector.all_node()
+    node_metrics.to_csv("Node_Metrics_{}_{}.csv".format(config["simulation"]["discovery_protocol"], config["clients"]["client_ratio"]))
     print(node_metrics)
-    # metrics_collector.collect_error_over_time().plot()
-    # metrics_collector.collect_opt_choice_over_time().plot()
 
 
 if __name__ == "__main__":
