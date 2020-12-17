@@ -146,6 +146,7 @@ class FogNode(object):
         start = time.perf_counter()
         msg = self.env.send_message(self.id, client_id,
                                     closest_node_id, gossip=self.gossip, msg_type=2, response=True, prev_msg=in_msg)
+        self.out_msg_history.append(msg)
         self.discovery_performance = time.perf_counter() - start
 
     def meridian_connect(self):
@@ -279,8 +280,9 @@ class FogNode(object):
         # Message every member of the same ring as the client with a type 4 message: Ping request to target
         for member in ring.get('members'):
             if(member.get('id') != self.id):
-                self.env.send_message(self.id, member.get('id'),
+                msg = self.env.send_message(self.id, member.get('id'),
                                       {'latency': target_latency, 'target': target}, gossip=self.gossip, msg_type=4)
+                self.out_msg_history.append(msg)
         # Start meridian waiting process to collect answers
         self.meridian_requests.append({'target': target, 'measures': []})
         self.env.process(self.await_meridian_pings(
@@ -314,6 +316,7 @@ class FogNode(object):
         else:
             msg = self.env.send_message(self.id, target,
                                         self.id, gossip=self.gossip, response=True, msg_type=2, prev_msg=orig_msg)
+        self.out_msg_history.append(msg)
         self.meridian_requests.remove(requests)
         self.await_performance = time.perf_counter() - start
 
@@ -369,9 +372,9 @@ class FogNode(object):
                     self.clients.remove(client)
                 
             # append current workload to list
-            self.workload.append({'timestamp': round(self.env.now), 'workload': len(self.clients)/self.slots})
+            self.workload.append({'timestamp': np.ceil(self.env.now), 'clients': len(self.clients), 'workload': len(self.clients)/self.slots})
             yield self.env.timeout(1)
-
+            
     def get_coordinates(self):
         """Returns the physical coordinates of the node
 
@@ -394,9 +397,10 @@ class FogNode(object):
         Bandwidth is reduced linearly the more Clients are connected
 
         Returns:
-            float: Bandwidth in Gbps between (0,1]
+            float: Bandwidth in Gbps between [0.1, 1]
         """
-        return min(1, 1 - (1/(self.slots)) * (len(self.clients) - 1))
+        sla = 0.05
+        return min(1, max(sla, 1 - (1-sla)* (len(self.clients)/(self.slots))))
 
     def calculate_rtt(self, in_msg):
         """Calculates the round-trip-time (rtt) of the incoming message by comparing timestamps with the out message

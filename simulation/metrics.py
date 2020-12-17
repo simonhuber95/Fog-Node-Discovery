@@ -7,7 +7,7 @@ class Metrics(object):
     def __init__(self, env):
         self.env = env
 
-    def all(self):
+    def all_client(self):
         """Collects all metrics and returns them in a single dataframe
 
         Returns:
@@ -22,6 +22,23 @@ class Metrics(object):
         disc_mse = self.collect_discovery_error()
         data_frames = [rec, lat, count, lost, active, opt_mse, disc_mse]
         df_merged = reduce(lambda left, right: pd.merge(left, right, on=["client_id"],
+                                                        how='outer'), data_frames)
+        return df_merged
+
+    def all_time(self):
+        unique = self.collect_unique_discovery()
+        choice = self.collect_opt_choice_over_time()
+        messages = self.collect_total_messages_over_time()
+        data_frames = [messages, unique, choice]
+        df_merged = reduce(lambda left, right: pd.merge(left, right, on=["timestamp"],
+                                                        how='outer'), data_frames)
+        return df_merged.sort_values(by=['timestamp']).fillna(0)
+
+    def all_node(self):
+        workload = self.collect_workload()
+        #messages = self.collect_node_messages()
+        data_frames = [workload]
+        df_merged = reduce(lambda left, right: pd.merge(left, right, on=["node_id"],
                                                         how='outer'), data_frames)
         return df_merged
 
@@ -127,7 +144,7 @@ class Metrics(object):
             # counter for chosing the optimal node
             opt_choice = 0
             for in_msg in client["obj"].in_msg_history:
-                if(in_msg.prev_msg and in_msg.msg_type == 1):
+                if(in_msg.prev_msg and in_msg.msg_type == 1 and in_msg.opt_latency):
                     # Retrieve request for the incoming response
                     out_msg = next(
                         (message for message in client["obj"].out_msg_history if message.id == in_msg.prev_msg.id), None)
@@ -184,11 +201,39 @@ class Metrics(object):
             for entry in node.get("obj").workload:
                 data.append(
                     {"timestamp": entry.get('timestamp'), "workload": entry.get('workload')})
-                
+
         df = pd.DataFrame(data=data, columns=["timestamp", "workload"])
-        df = df.groupby("timestamp").agg(['std','mean', 'min', 'max'])
+        df = df.groupby("timestamp").agg(['std', 'mean', 'min', 'max', ])
         return df
-    
+
+    def collect_unique_discovery(self):
+        """
+        """
+        data = []
+        for node in self.env.nodes:
+            for message in filter(lambda msg: msg.msg_type == 2, node.get('obj').out_msg_history):
+                data.append({"timestamp": np.ceil(
+                    message.timestamp), "discovery": message.body})
+
+        def func(messages): return len(set(messages))
+        df = pd.DataFrame(data=data, columns=["timestamp", "discovery"])
+        df = df.groupby(["timestamp"])['discovery'].agg(
+            [('unique discoveries', func)])
+        df.reset_index()
+        return df
+
+    def collect_total_messages_over_time(self):
+        data = []
+
+        for elem in [*self.env.nodes, *self.env.clients]:
+            for message in elem.get('obj').out_msg_history:
+                data.append({"timestamp": np.ceil(message.timestamp)})
+
+        df = pd.DataFrame(data=data, columns=["timestamp"])
+        df = df.groupby(["timestamp"]).size(
+        ).reset_index(name='total messages')
+        df.reset_index()
+        return df
 
     def collect_error_over_time(self):
         """Computes the mean-square-error for every message from type 2 of the optimal latency and the latency to the suggestes node
@@ -209,7 +254,7 @@ class Metrics(object):
                 opt_choice.append(1 if in_msg.opt_node == in_msg.body else 0)
                 timestamp = round(in_msg.timestamp)
                 data.append(
-                    {"timestamp": timestamp, "y_true": y_true, "y_opt": y_opt, "discovery_rate": sum(opt_choice)/len(opt_choice)})
+                    {"timestamp": np.ceil(timestamp), "y_true": y_true, "y_opt": y_opt, "discovery_rate": sum(opt_choice)/len(opt_choice)})
         df = pd.DataFrame(data=data, columns=[
                           "timestamp", "y_true", "y_opt", "discovery_rate"])
 
@@ -233,7 +278,43 @@ class Metrics(object):
                 opt_choice.append(1 if in_msg.opt_node == in_msg.body else 0)
                 timestamp = round(in_msg.timestamp)
                 data.append(
-                    {"timestamp": timestamp,  "opt_choice": sum(opt_choice)/len(opt_choice)})
+                    {"timestamp": np.ceil(timestamp),  "opt_choice": sum(opt_choice)/len(opt_choice)})
         df = pd.DataFrame(data=data, columns=["timestamp", "opt_choice"])
         df = df.groupby("timestamp").agg("mean")
+        return df
+
+    def collect_workload(self):
+        data = []
+        for node in self.env.nodes:
+            workloads = [elem.get(
+                'workload') for elem in node["obj"].workload if elem.get('timestamp') > 10]
+            clients = [elem.get('clients') for elem in node["obj"].workload if elem.get(
+                'timestamp') > 10]
+            avg_workload = round(np.mean(workloads),2)
+            max_workload = round(np.max(workloads),2)
+            min_workload = round(np.min(workloads),2)
+            avg_clients = round(np.mean(clients))
+            min_clients = round(np.min(clients))
+            max_clients = round(np.max(clients))
+            min_bandwidth = min(1, max(0.1, 1 - (1/(node["obj"].slots)) * (max_clients - 1)))
+            avg_bandwidth = min(1, max(0.1, 1 - (1/(node["obj"].slots)) * (avg_clients - 1)))
+            max_bandwidth = min(1, max(0.1, 1 - (1/(node["obj"].slots)) * (min_clients - 1)))
+            data.append(
+                {"node_id": node["obj"].id, "avg workload": avg_workload, "min workload": min_workload, "max workload": max_workload, 
+                 "avg clients": avg_clients, "min clients": min_clients, "max clients": max_clients, 
+                 'avg bandwidth': avg_bandwidth, 'min bandwidth': min_bandwidth, 'max bandwidth': max_bandwidth})
+        return pd.DataFrame(data=data, columns=["node_id", "avg workload", "min workload", "max workload", 
+                                                "avg clients", "min clients", "max clients", 
+                                                "avg bandwidth", "min bandwidth", "max bandwidth"])
+
+    def collect_node_messages(self):
+        data = []
+        for node in self.env.nodes:
+            history = [*node["obj"].in_msg_history,
+                       *node["obj"].out_msg_history]
+
+            data.append({"node_id": node["obj"].id, "total_msgs": len(history),  "out_msgs": len(node["obj"].out_msg_history),
+                         "in_msgs": len(node["obj"].in_msg_history)})
+        df = pd.DataFrame(data=data, columns=[
+                          "node_id", "total_msgs", "out_msgs", "in_msgs"])
         return df
