@@ -80,7 +80,7 @@ def main():
         node = FogNode(env, id=node_id,
                     discovery_protocol=config["simulation"]["discovery_protocol"],
                     slots=math.ceil(node_entry["Antennas"] * config["nodes"]["slot_scaler"]),
-                    hardware = random.randint(1,3)
+                    hardware = my_random.randint(1,3),
                     phy_x=node_x,
                     phy_y=node_y,
                     verbose=config["simulation"]["verbose"])

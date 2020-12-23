@@ -123,7 +123,7 @@ class FogEnvironment(Environment):
                 # basically no distance as we are connected via backhaul
                 propagation_delay = 0 * 0.0035
                 processing_delay = sender.hardware * 0.01 + 0.05
-                queuing_delay = min(5, 1/(2 * bandwidth))
+                queuing_delay = min(50, 1/(2 * bandwidth))
             # Connection between client and node
             else:
                 # Checking which participant is Node and who is Client

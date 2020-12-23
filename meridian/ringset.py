@@ -31,13 +31,13 @@ class RingSet(object):
         # Convert latency into ms
         latency = latency * 1000
         # High latencies are put in outermost ring
-        if latency > self.alpha*self.s**self.max_rings:
+        if latency > self.alpha*(self.s**self.max_rings):
             return self.max_rings
         # negative of low latencies are put in innermost ring
         if latency < self.alpha:
             return 1
         for i in range(1, self.max_rings + 1):
-            if (self.alpha * self.s**(i-1)) <= latency < (self.alpha * self.s**i):
+            if (self.alpha * (self.s**(i-1))) <= latency < (self.alpha * (self.s**i)):
                 return i
 
     def get_ring(self, primary, ring_number):
