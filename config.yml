@@ -1,7 +1,7 @@
 simulation:
   runtime: 20 # in seconds
   area: 1500 # x and y translation in meter of random selected area
-  area_selection: center # random or center
+  area_selection: all # random, center, all
   verbose: False
   discovery_protocol: vivaldi # baseline, vivaldi, meridian, random
   connection: multi-hop # single-hop, multi-hop
@@ -19,10 +19,14 @@ nodes:
 map:
   city: data/berlin-latest-free/gis_osm_places_a_free_1.shp
   roads: data/berlin-latest-free/gis_osm_roads_free_1.shp
-  x_min: 4573063.1296
-  x_max: 4620052.7497
-  y_min: 5800675.0537
-  y_max: 5839575.7712
+  x_min: 4573063.1296 # For Berlin
+  x_max: 4620052.7497 # For Berlin
+  y_min: 5800675.0537 # For Berlin
+  y_max: 5839575.7712 # For Berlin
+  # x_min: 4573063.1296 # For Germany
+  # x_max: 4620052.7497 # For Germany
+  # y_min: 5800675.0537 # For Germany
+  # y_max: 5839575.7712 # For Germany
 bands:
   5G-High:
     distance: 50 #in meter

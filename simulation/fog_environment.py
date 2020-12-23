@@ -180,7 +180,8 @@ class FogEnvironment(Environment):
                            self.config["map"]["x_max"])/2 - x_trans/2)
             y_lower = int((self.config["map"]["y_min"] +
                            self.config["map"]["y_max"])/2 - y_trans/2)
-
+        elif(method == "all"):
+            return ((int(self.config["map"]["x_min"]), int(self.config["map"]["x_max"]),int(self.config["map"]["y_min"]), int(self.config["map"]["y_max"]))) 
         else:
             raise RuntimeError(
                 "Unknown area selection method. Expected \'random\' or \'center\', found {}".format(method))
