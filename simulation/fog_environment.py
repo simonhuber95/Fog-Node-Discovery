@@ -121,9 +121,11 @@ class FogEnvironment(Environment):
                                 receiver.get_bandwidth())
                 transmission_delay = -0.008 * bandwidth + 0.088
                 # basically no distance as we are connected via backhaul
-                propagation_delay = 0 * 0.0035
+                distance = self.get_distance(sender.phy_x, sender.phy_y, receiver.phy_x, receiver.phy_y)/1000
+                propagation_delay = distance * 0.0035
                 processing_delay = sender.hardware * 0.01 + 0.05
                 queuing_delay = min(50, 1/(2 * bandwidth))
+                # print(transmission_delay + propagation_delay + processing_delay + queuing_delay, distance)
             # Connection between client and node
             else:
                 # Checking which participant is Node and who is Client

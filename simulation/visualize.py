@@ -14,7 +14,7 @@ def visualize_movements(env, map_file=None, EPSG="EPSG:31468"):
     node_x, node_y = [], []
     node_sc = ax.scatter(node_x, node_y)
     (x_lower, x_upper, y_lower, y_upper) = env.boundaries
-    ax.imshow(img)
+    # ax.imshow(img)
     plt.xlim(x_lower, x_upper)
     plt.ylim(y_lower, y_upper)
     plt.draw()

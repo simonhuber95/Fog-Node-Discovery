@@ -1,21 +1,24 @@
 simulation:
-  runtime: 20 # in seconds
-  area: 1500 # x and y translation in meter of random selected area
-  area_selection: all # random, center, all
-  verbose: False
-  discovery_protocol: vivaldi # baseline, vivaldi, meridian, random
+  runtime: 600 # in seconds
+  area: 1500 # x and y translation in meter of selected area
+  area_selection: random # random, center, all
+  verbose: False # True, False
+  scenario: berlin # berlin, germany
+  discovery_protocol: random # baseline, vivaldi, meridian, random
   connection: multi-hop # single-hop, multi-hop
 clients:
   path: data/reduced_berlin_v5.4-10pct.plans.xml
-  max_clients: None
-  client_ratio: 1.0
+  max_clients: None # None if no max clients, else integer
+  client_ratio: 1.0 # Float between [0,1]
   latency_threshold: 0.005
   roundtrip_threshold: 0.010
   timeout_threshold: 0.100
 nodes:
   path: data/cell_towers/cell_towers.shp
-  min_nodes: 1
-  slot_scaler: 1
+  min_nodes: 1 # None if no min nodes, else integer
+  max_nodes: None # None if no max nodes, else integer  
+  slot_scaler: 1 # Non-negative Number
+  unlimited_bandwidth: False # True, False
 map:
   city: data/berlin-latest-free/gis_osm_places_a_free_1.shp
   roads: data/berlin-latest-free/gis_osm_roads_free_1.shp
@@ -23,10 +26,10 @@ map:
   x_max: 4620052.7497 # For Berlin
   y_min: 5800675.0537 # For Berlin
   y_max: 5839575.7712 # For Berlin
-  # x_min: 4573063.1296 # For Germany
-  # x_max: 4620052.7497 # For Germany
-  # y_min: 5800675.0537 # For Germany
-  # y_max: 5839575.7712 # For Germany
+  # x_min: 4036308.74 # For Germany
+  # x_max: 5255076.75 # For Germany
+  # y_min: 4617579.38 # For Germany
+  # y_max: 6108355.90 # For Germany
 bands:
   5G-High:
     distance: 50 #in meter
