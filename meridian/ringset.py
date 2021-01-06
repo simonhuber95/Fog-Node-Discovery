@@ -26,14 +26,14 @@ class RingSet(object):
             latency (number): latency in seconds
 
         Returns:
-            ring_number: ring number for the given latency from (1,..,k)
+            ring_number: ring number for the given latency from (1,..,max_rings)
         """
         # Convert latency into ms
         latency = latency * 1000
         # High latencies are put in outermost ring
         if latency > self.alpha*(self.s**self.max_rings):
             return self.max_rings
-        # negative of low latencies are put in innermost ring
+        # negative or low latencies are put in innermost ring
         if latency < self.alpha:
             return 1
         for i in range(1, self.max_rings + 1):
