@@ -9,7 +9,7 @@ import warnings
 
 
 class Meridian(object):
-    def __init__(self, id, system_nodes, l=None, alpha=1, s=2, beta=0.5):
+    def __init__(self, id, system_nodes, l=None, alpha=1, s=1.5, beta=0.5):
         # Radius coefficients
         self.id = id
         self.alpha = alpha
@@ -48,7 +48,8 @@ class Meridian(object):
                 continue
             # Ensure matrix is square
             if latency_matrix.shape[0] != latency_matrix.shape[1]:
-                warnings.warn("Latency matrix is not squared", latency_matrix.shape)
+                warnings.warn("Latency matrix is not squared",
+                              latency_matrix.shape)
                 continue
             # Reduce latency matrix to k elements, therefore we perform n = elements in matrix - k reduction steps
             new_primaries, new_secondaries = self.reduce_set_by_n(

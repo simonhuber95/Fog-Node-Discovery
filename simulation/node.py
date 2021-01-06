@@ -278,6 +278,9 @@ class FogNode(object):
         ring_number = ring_set.get_ring_number(target_latency)
         ring = ring_set.get_ring(True, ring_number)
         # Message every member of the same ring as the client with a type 4 message: Ping request to target
+        print("meridian node requesting {} ring members. Ring: {}".format(len(ring.get('members')), ring_number))
+        print("Ring Population:", [len(ring.get('members')) for ring in ring_set.primary_rings])
+        # print(self.virtual_position.ring_set.primary_rings)
         for member in ring.get('members'):
             if(member.get('id') != self.id):
                 msg = self.env.send_message(self.id, member.get('id'),

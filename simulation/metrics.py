@@ -36,8 +36,8 @@ class Metrics(object):
 
     def all_node(self):
         workload = self.collect_workload()
-        #messages = self.collect_node_messages()
-        data_frames = [workload]
+        messages = self.collect_node_messages()
+        data_frames = [workload, messages]
         df_merged = reduce(lambda left, right: pd.merge(left, right, on=["node_id"],
                                                         how='outer'), data_frames)
         return df_merged
@@ -177,10 +177,11 @@ class Metrics(object):
             # counter for chosing the optimal node
             opt_choice = 0
             for in_msg in (x for x in client["obj"].in_msg_history if x.msg_type == 2 and x.response):
-                y_true.append(in_msg.discovered_latency*1000)
-                y_opt.append(in_msg.opt_latency*1000)
-                # Counter of optimal node choice
-                opt_choice = opt_choice + 1 if in_msg.opt_node == in_msg.body else opt_choice
+                if in_msg.opt_latency and in_msg.discovered_latency:
+                    y_true.append(in_msg.discovered_latency*1000)
+                    y_opt.append(in_msg.opt_latency*1000)
+                    # Counter of optimal node choice
+                    opt_choice = opt_choice + 1 if in_msg.opt_node == in_msg.body else opt_choice
 
             opt_rate = opt_choice/len(y_true) if len(y_true) > 0 else 0
             rmse = round(
@@ -248,13 +249,15 @@ class Metrics(object):
             # counter for chosing the optimal node
             opt_choice = []
             for in_msg in (x for x in client["obj"].in_msg_history if x.msg_type == 2):
-                y_true = in_msg.discovered_latency * 1000
-                y_opt = in_msg.opt_latency * 1000
-                # Counter of optimal node choice
-                opt_choice.append(1 if in_msg.opt_node == in_msg.body else 0)
-                timestamp = round(in_msg.timestamp)
-                data.append(
-                    {"timestamp": np.ceil(timestamp), "y_true": y_true, "y_opt": y_opt, "discovery_rate": sum(opt_choice)/len(opt_choice)})
+                if in_msg.opt_latency and in_msg.discovered_latency:
+                    y_true = in_msg.discovered_latency * 1000
+                    y_opt = in_msg.opt_latency * 1000
+                    # Counter of optimal node choice
+                    opt_choice.append(1 if in_msg.opt_node ==
+                                      in_msg.body else 0)
+                    timestamp = round(in_msg.timestamp)
+                    data.append(
+                        {"timestamp": np.ceil(timestamp), "y_true": y_true, "y_opt": y_opt, "discovery_rate": sum(opt_choice)/len(opt_choice)})
         df = pd.DataFrame(data=data, columns=[
                           "timestamp", "y_true", "y_opt", "discovery_rate"])
 
@@ -290,21 +293,24 @@ class Metrics(object):
                 'workload') for elem in node["obj"].workload if elem.get('timestamp') > 10]
             clients = [elem.get('clients') for elem in node["obj"].workload if elem.get(
                 'timestamp') > 10]
-            avg_workload = round(np.mean(workloads),2)
-            max_workload = round(np.max(workloads),2)
-            min_workload = round(np.min(workloads),2)
+            avg_workload = round(np.mean(workloads), 2)
+            max_workload = round(np.max(workloads), 2)
+            min_workload = round(np.min(workloads), 2)
             avg_clients = round(np.mean(clients))
             min_clients = round(np.min(clients))
             max_clients = round(np.max(clients))
-            min_bandwidth = min(1, max(0.1, 1 - (1/(node["obj"].slots)) * (max_clients - 1)))
-            avg_bandwidth = min(1, max(0.1, 1 - (1/(node["obj"].slots)) * (avg_clients - 1)))
-            max_bandwidth = min(1, max(0.1, 1 - (1/(node["obj"].slots)) * (min_clients - 1)))
+            min_bandwidth = min(
+                1, max(0.1, 1 - (1/(node["obj"].slots)) * (max_clients - 1)))
+            avg_bandwidth = min(
+                1, max(0.1, 1 - (1/(node["obj"].slots)) * (avg_clients - 1)))
+            max_bandwidth = min(
+                1, max(0.1, 1 - (1/(node["obj"].slots)) * (min_clients - 1)))
             data.append(
-                {"node_id": node["obj"].id, "avg workload": avg_workload, "min workload": min_workload, "max workload": max_workload, 
-                 "avg clients": avg_clients, "min clients": min_clients, "max clients": max_clients, 
+                {"node_id": node["obj"].id, "avg workload": avg_workload, "min workload": min_workload, "max workload": max_workload,
+                 "avg clients": avg_clients, "min clients": min_clients, "max clients": max_clients,
                  'avg bandwidth': avg_bandwidth, 'min bandwidth': min_bandwidth, 'max bandwidth': max_bandwidth})
-        return pd.DataFrame(data=data, columns=["node_id", "avg workload", "min workload", "max workload", 
-                                                "avg clients", "min clients", "max clients", 
+        return pd.DataFrame(data=data, columns=["node_id", "avg workload", "min workload", "max workload",
+                                                "avg clients", "min clients", "max clients",
                                                 "avg bandwidth", "min bandwidth", "max bandwidth"])
 
     def collect_node_messages(self):
