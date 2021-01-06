@@ -13,6 +13,18 @@ import numpy as np
 
 class FogNode(object):
     def __init__(self, env, id, discovery_protocol, slots, hardware=2, phy_x=4632239.86, phy_y=5826584.42, verbose=True):
+        """Fog Node of the simulation
+
+        Args:
+            env (FogEnvironment): Fog Environment of the simulation
+            id (uuid): ID of the Fog Node
+            discovery_protocol (str): Discovery protocol to be used in the simulation
+            slots (int): Amount of slots the node has
+            hardware (int, optional): Hardware type of the Fog Node, the lower the better. Defaults to 2.
+            phy_x (float, optional): Physical x-coordinate of the Fog Node. Defaults to 4632239.86.
+            phy_y (float, optional): Physical y-coordinate of the Fog Node. Defaults to 5826584.42.
+            verbose (bool, optional): Verbosity of the Fog Node. Defaults to True.
+        """
         self.env = env
         self.id = id
         self.discovery_protocol = discovery_protocol
@@ -155,6 +167,7 @@ class FogNode(object):
         Type 1: Regular task message from client, node simply responses
         Type 2: Clostest node request from client, node triggers the probe event to discover closest node asynchronously
         Type 3: Probing response or request from other node, at response the own VivaldiPosition is updated, at request, a response is sent
+        Type 4: Ping Request from other node, to ping the target in the recursive nearest node search
         Yields:
             simpy.Event: the incoming message in msg_pipe
             simpy.Event: the latency as a timeout
@@ -252,6 +265,11 @@ class FogNode(object):
             self.connect_performance = time.perf_counter() - start
 
     def meridian_get_closest_node(self, in_msg):
+        """Triggers the recursive closest node search of the Meridian system
+
+        Args:
+            in_msg (Message): The request of the client
+        """
         start = time.perf_counter()
         sender = self.env.get_participant(in_msg.send_id)
         # If sender of the Message is another node we iniatiate the search process with the targets last ping
@@ -278,8 +296,6 @@ class FogNode(object):
         ring_number = ring_set.get_ring_number(target_latency)
         ring = ring_set.get_ring(True, ring_number)
         # Message every member of the same ring as the client with a type 4 message: Ping request to target
-        # print("Ring Number {}, Members in Ring: {}, Latency: {}".format(ring_number, len(ring.get('members')), target_latency* 1000))
-        # print([len(ring.get('members')) for ring in ring_set.primary_rings])
         for member in ring.get('members'):
             if(member.get('id') != self.id):
                 msg = self.env.send_message(self.id, member.get('id'),
@@ -323,6 +339,13 @@ class FogNode(object):
         self.await_performance = time.perf_counter() - start
 
     def meridian_ring_management(self, period=30):
+        """Meridian ring management process
+        Assigns ring membership periodically
+
+        Args:
+            period (int, optional): Management period. Defaults to 30.
+
+        """
         # Startup timeout is random so nodes do the ring management at different timesteps
         yield self.env.timeout(Random().randint(10, 20) + Random().random())
         while True:
@@ -367,6 +390,9 @@ class FogNode(object):
             yield self.env.timeout(timeout + my_random.random())
 
     def monitor(self):
+        """Monitor process of the Fog Node
+        Manages the available slots and tracks metrics
+        """
         while True:
             # check every second if a client connection is outdated
             for client in self.clients:
@@ -445,6 +471,14 @@ class FogNode(object):
                         self.virtual_position.update_meridian(news)
 
     def init_virtual_position(self, discovery_protocol):
+        """Inits the virtual position depending on the discovery protocol
+
+        Args:
+            discovery_protocol (str): Discovery protocol to be used in the simulation
+
+        Returns:
+            other: The virtual position of the Fog Node or None
+        """
         if discovery_protocol == "baseline":
             return None
         elif discovery_protocol == "vivaldi":
@@ -453,7 +487,13 @@ class FogNode(object):
             return Meridian(self.id, self.env.amount_nodes)
 
     def update_virtual_position(self, in_msg):
-        if self.discovery_protocol == "baseline":
+        """Wrapper function to update the virtual position of the Fog Node
+        Calls the corresponding update mechanism depending on the discovery protcol
+
+        Args:
+            in_msg (Message): Incoming message upon which the virtual position should be updated
+        """
+        if self.discovery_protocol == "baseline" or self.discovery_protocol == "random":
             return
 
         sender_news = next(
