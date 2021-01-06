@@ -11,12 +11,18 @@ import numpy as np
 
 
 class MobileClient(object):
-    def __init__(self, env, id, plan, discovery_protocol, latency_threshold=0.9, roundtrip_threshold=1.2, timeout_threshold=2, verbose=True):
-        """ Initializes a Mobile Client
+    def __init__(self, env, id, plan, discovery_protocol, latency_threshold=0.005, roundtrip_threshold=1.2, timeout_threshold=2, verbose=True):
+        """Initializes a Mobile Client
+
         Args:
-            env (simpy.Environment): The Environment of the simulation
-            id (string): The ID of the Client
-            plan (XML object): The XML Object of the Client from the open berlin scenario
+            env (FogEnvironment): Fog Environment of the simulation
+            id (uuid): The ID of the Client
+            plan (XML object): The XML Object of the Client from the reduced open berlin scenario
+            discovery_protocol (str): The discovery protocol used for the simulation
+            latency_threshold (float, optional): latency threshold in seconds of the client's reconnection rules. Defaults to 0.005.
+            roundtrip_threshold (float, optional): roundtrip threshold in seconds of the client's reconnection rules. Defaults to 0.010.
+            timeout_threshold (int, optional): timeout threshold in seconds of the client's reconnection rules. Defaults to 0.100.
+            verbose (bool, optional): Verbosity of the client. Defaults to True.
         """
         self.env = env
         self.id = id
@@ -63,6 +69,15 @@ class MobileClient(object):
         
 
     def move(self, start_up):
+        """The move process of the client.
+        Is started at the start of the simulation but waits the given start_up time
+        Moves through the simulation area based on the open berlin scenario movement pattern
+        Invokes the stop function if client is out of simulation area bounds or no more trips are available
+        
+        Args:
+            start_up (float): Startup time in seconds
+
+        """
         # wait until nodes are ready
         yield self.env.timeout(start_up)
         if self.verbose:
@@ -146,7 +161,7 @@ class MobileClient(object):
         Updates Gossip, updates the virtual position and depending on the message type performs different actions
         Type 1: Standard answer from node -> do nothin
         Type 2: Response to closest node request -> set closest_node_id to body of the answer
-
+        Type 3: Ping from a node -> answer
         Yields:
             simypy.Store: incoming Message pipe of the cleint
         """
