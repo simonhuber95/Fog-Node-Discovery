@@ -5,8 +5,14 @@ import numpy as np
 plt.style.use('ggplot')
 
 
-def visualize_movements(env, map_file=None, EPSG="EPSG:31468"):
-    img = plt.imread("Maps_Background.png")
+def visualize_movements(env, EPSG="EPSG:31468"):
+    """Visualizes the movements of the mobile clients of the simulation
+
+    Args:
+        env (FogEnvironment): Fog Environment of the simulation
+        EPSG (str, optional): EPSG code. Defaults to "EPSG:31468".
+
+    """
     plt.ion()
     fig, ax = plt.subplots()
     client_x, client_y = [], []
@@ -14,11 +20,9 @@ def visualize_movements(env, map_file=None, EPSG="EPSG:31468"):
     node_x, node_y = [], []
     node_sc = ax.scatter(node_x, node_y)
     (x_lower, x_upper, y_lower, y_upper) = env.boundaries
-    # ax.imshow(img)
     plt.xlim(x_lower, x_upper)
     plt.ylim(y_lower, y_upper)
     plt.draw()
-
     while True:
 
         client_x = [client["obj"].get_coordinates()[0]
@@ -38,30 +42,16 @@ def visualize_movements(env, map_file=None, EPSG="EPSG:31468"):
         plt.pause(0.001)
         yield env.timeout(5)
 
-def full_nodes_over_time(env, runtime):
-    plt.ion()
-    hl, = plt.plot([], [])
-    # client_x, client_y = [], []
-    # client_sc = ax.scatter(client_x, client_y)
-    plt.xlim(0, runtime)
-    plt.ylim(0, 30)
-    plt.draw()
-    while True:
-
-        performance_i = sum((1 for node in env.nodes if node["obj"].slots == len(node["obj"].clients)))
-        
-        hl.set_xdata(np.append(hl.get_xdata(), env.now))
-        hl.set_ydata(np.append(hl.get_ydata(), np.mean(performance_i)))
-
-        plt.draw()
-        plt.pause(0.001)
-        yield env.timeout(1)
         
 def unique_discovery_over_time(env, runtime):
+    """Visualizes the unique discovery per timestep over all nodes of the simulation
+
+    Args:
+        env (FogEnvironment): Fog Environment of the simulation
+        runtime (int): Total runtime of the simulation
+    """
     plt.ion()
     hl, = plt.plot([], [])
-    # client_x, client_y = [], []
-    # client_sc = ax.scatter(client_x, client_y)
     plt.xlim(0, 60)
     plt.ylim(0, 30)
     plt.draw()
@@ -80,6 +70,12 @@ def unique_discovery_over_time(env, runtime):
 
 
 def visualize_reconnections_over_time(env, runtime):
+    """Visualizes the recnnection requests per timestep over all clients of the simulation
+
+    Args:
+        env (FogEnvironment): Fog Environment of the simulation
+        runtime (int): Total runtime of the simulation
+    """
     plt.ion()
     hl, = plt.plot([], [])
     # client_x, client_y = [], []
@@ -102,56 +98,25 @@ def visualize_reconnections_over_time(env, runtime):
         yield env.timeout(1)
 
 def visualize_latency_over_time(env, runtime):
+    """Visualizes the average latency per timestep over all clients of the simulation
+
+    Args:
+        env (FogEnvironment): Fog Environment of the simulation
+        runtime (int): Total runtime of the simulation
+    """
     plt.ion()
     hl, = plt.plot([], [])
-    # client_x, client_y = [], []
-    # client_sc = ax.scatter(client_x, client_y)
     plt.xlim(0, runtime)
     plt.ylim(0, 7)
     plt.draw()
     while True:
         performance_i = [client["obj"].out_msg_history[-1].latency*1000 for client in env.clients if client["obj"].out_msg_history]
-        
         hl.set_xdata(np.append(hl.get_xdata(), env.now))
         hl.set_ydata(np.append(hl.get_ydata(), np.mean(performance_i)))
-
         plt.draw()
         plt.pause(0.001)
         yield env.timeout(1)
     
-def visualize_client_performance(env, runtime):
-    plt.ion()
-    hl, = plt.plot([], [])
-    # client_x, client_y = [], []
-    # client_sc = ax.scatter(client_x, client_y)
-    plt.xlim(0, runtime)
-    plt.ylim(0, 0.02)
-    plt.draw()
-    while True:
-        performance_i = [
-            client["obj"].out_performance for client in env.clients]
-        hl.set_xdata(np.append(hl.get_xdata(), env.now))
-        hl.set_ydata(np.append(hl.get_ydata(), np.mean(performance_i)))
 
-        plt.draw()
-        plt.pause(0.001)
-        yield env.timeout(1)
-
-
-def visualize_node_performance(env, runtime):
-    plt.ion()
-    hl, = plt.plot([], [])
-    plt.xlim(0, runtime)
-    plt.ylim(0, 0.05)
-    plt.draw()
-    while True:
-        performance_i = [
-            node["obj"].connect_performance for node in env.nodes]
-        hl.set_xdata(np.append(hl.get_xdata(), env.now))
-        hl.set_ydata(np.append(hl.get_ydata(), np.nanmean(performance_i)))
-
-        plt.draw()
-        plt.pause(0.001)
-        yield env.timeout(1)
 
     
