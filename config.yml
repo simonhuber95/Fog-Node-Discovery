@@ -5,7 +5,6 @@ simulation:
   verbose: False # True, False
   scenario: berlin # berlin, germany
   discovery_protocol: random # baseline, vivaldi, meridian, random
-  connection: multi-hop # single-hop, multi-hop
 clients:
   path: data/reduced_berlin_v5.4-10pct.plans.xml
   max_clients: None # None if no max clients, else integer
