@@ -11,12 +11,18 @@ import numpy as np
 
 
 class MobileClient(object):
-    def __init__(self, env, id, plan, discovery_protocol, latency_threshold=0.9, roundtrip_threshold=1.2, timeout_threshold=2, verbose=True):
-        """ Initializes a Mobile Client
+    def __init__(self, env, id, plan, discovery_protocol, latency_threshold=0.005, roundtrip_threshold=1.2, timeout_threshold=2, verbose=True):
+        """Initializes a Mobile Client
+
         Args:
-            env (simpy.Environment): The Environment of the simulation
-            id (string): The ID of the Client
-            plan (XML object): The XML Object of the Client from the open berlin scenario
+            env (FogEnvironment): Fog Environment of the simulation
+            id (uuid): The ID of the Client
+            plan (XML object): The XML Object of the Client from the reduced open berlin scenario
+            discovery_protocol (str): The discovery protocol used for the simulation
+            latency_threshold (float, optional): latency threshold in seconds of the client's reconnection rules. Defaults to 0.005.
+            roundtrip_threshold (float, optional): roundtrip threshold in seconds of the client's reconnection rules. Defaults to 0.010.
+            timeout_threshold (int, optional): timeout threshold in seconds of the client's reconnection rules. Defaults to 0.100.
+            verbose (bool, optional): Verbosity of the client. Defaults to True.
         """
         self.env = env
         self.id = id
@@ -37,8 +43,6 @@ class MobileClient(object):
         # Set coordinates to first activity in plan
         self.phy_x = float(plan.find('trip').attrib["x"])
         self.phy_y = float(plan.find('trip').attrib["y"])
-        # Zip all activities and legs into pairs (except for initial activity used for init coordinates) only used for non reduced plan
-        # self.pairs = zip(plan.findall('activity')[1:], plan.findall('leg'))
         if self.verbose:
             print("Client {}: active, current location x: {}, y: {}".format(
                 self.id, self.phy_x, self.phy_y))
@@ -50,7 +54,6 @@ class MobileClient(object):
         self.move_process = self.env.process(self.move(start_up))
         self.monitor_process = self.env.process(self.monitor())
         self.stop_event = env.event()
-
         # Init the virtual Position
         self.virtual_position = self.init_virtual_position(discovery_protocol)
         self.discovery_protocol = discovery_protocol
@@ -63,6 +66,15 @@ class MobileClient(object):
         
 
     def move(self, start_up):
+        """The move process of the client.
+        Is started at the start of the simulation but waits the given start_up time
+        Moves through the simulation area based on the open berlin scenario movement pattern
+        Invokes the stop function if client is out of simulation area bounds or no more trips are available
+        
+        Args:
+            start_up (float): Startup time in seconds
+
+        """
         # wait until nodes are ready
         yield self.env.timeout(start_up)
         if self.verbose:
@@ -70,12 +82,11 @@ class MobileClient(object):
         # Iterate through every leg & activity in seperate process
         #for activity, leg in self.pairs:
         for trip in self.plan:
-            # entry = self.get_entry_from_data(activity=activity, leg=leg)
             trav_time = trip.attrib['trav_time']
             duration = sum(x * int(t) for x, t in zip([3600, 60, 1], trav_time.split(":")))
             to_x = float(trip.attrib['x'])
             to_y = float(trip.attrib['y'])
-            # skip this leg, if the duration is 0
+            # skip this leg, if the duration is lower than 1 second
             if(duration < 1):
                 continue
 
@@ -146,7 +157,7 @@ class MobileClient(object):
         Updates Gossip, updates the virtual position and depending on the message type performs different actions
         Type 1: Standard answer from node -> do nothin
         Type 2: Response to closest node request -> set closest_node_id to body of the answer
-
+        Type 3: Ping from a node -> answer
         Yields:
             simypy.Store: incoming Message pipe of the cleint
         """
@@ -160,10 +171,8 @@ class MobileClient(object):
             in_msg.rec_timestamp = self.env.now
             # Append message to history
             self.in_msg_history.append(in_msg)
-
             # Update gossip
             self.update_gossip(in_msg)
-
             # Updating the virtual Position for every incoming message which is a response in the following
             # Checking if incoming message is a response on which a rtt can be calculated and virtual position is updated
             if(in_msg.prev_msg):
@@ -222,31 +231,6 @@ class MobileClient(object):
         ])
         return check
 
-    def get_entry_from_data(self, activity, leg):
-        """Extracts a combined entry from a touple of one activity and one leg.
-        Deprecated as this uses the non reduced OpenBerlinScenario xml file
-        Args:
-            activity (XML Elemenent): The activity element of the open berlin scenario
-            leg (XML Element): The leg element prior to the activity of the open berlin scenario
-
-        Returns:
-            dict: A dictionary with the fields "x", "y", "route", "trav_time" and "distance"
-        """
-        entry = {}
-        # Setting the physical end x coordinate from the following activity
-        entry['x'] = float(activity.attrib['x'])
-        # Setting the physical end y coordinate from the following activty
-        entry['y'] = float(activity.attrib['y'])
-        # retrieving the route from the leg node
-        route = leg.find('route')
-        # Setting the travel time in seconds
-        duration = route.attrib['trav_time']
-        # Computing the travel time in seconds
-        entry['trav_time'] = sum(
-            x * int(t) for x, t in zip([3600, 60, 1], duration.split(":")))
-        # Setting the distance as float in meters
-        entry['distance'] = float(route.attrib['distance'])
-        return entry
 
     def in_bounds(self):
         """Checks if the Client is in bounds of the simulation

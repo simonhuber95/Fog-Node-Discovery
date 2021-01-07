@@ -303,6 +303,14 @@ class RingSet(object):
         return any(member.get('id') == member_id for member in member_list)
 
     def get_member(self, member_id):
+        """Gets a member of the ringset by its ID
+
+        Args:
+            member_id (uuid): ID of the member
+
+        Returns:
+            [dict]: Dictionary of the ring member
+        """
         flat_members_list = self.get_all_members()
         if flat_members_list:
             # Get the member
@@ -310,6 +318,11 @@ class RingSet(object):
         return None
 
     def get_all_members(self):
+        """Gets all members of the ring set
+
+        Returns:
+            [List]: List of dictionaries of all members
+        """
         rings = [ring for ring in [*self.primary_rings, *
                                    self.secondary_rings] if len(ring.get('members')) > 0]
         # Get all the members from the rings
@@ -319,6 +332,12 @@ class RingSet(object):
         return members_list
 
     def update_coordinates(self, member_id, coordinates):
+        """Updates the coordinates of the given member
+
+        Args:
+            member_id (uuid): ID of the member
+            coordinates (DateFrame): Pandas DataFrame of the coordinates as vector
+        """
         member = self.get_member(member_id)
         if member:
             member.update({'coordinates': coordinates})

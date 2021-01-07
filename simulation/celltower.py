@@ -1,16 +1,3 @@
-import simpy
-from simpy import Resource
-import random
-from operator import itemgetter
-from vivaldi.vivaldiposition import VivaldiPosition
-from .client import MobileClient
-from meridian.meridian import Meridian
-import math
-import time
-from random import Random
-import numpy as np
-
-
 class Celltower(object):
     def __init__(self, env, id, phy_x=4632239.86, phy_y=5826584.42, verbose=False):
         self.env = env

@@ -6,6 +6,19 @@ import numpy as np
 
 
 def plot_data(columns, titles, y_labels, scenario=None, entity="Client", skip_rows=0, header=0):
+    """Plot data from measurements
+    Iterates over all columns and collects the values for every NCS for the specific column
+    Scenarios define how the date is presented, line graph over client ratio for the standerd scenario, bar plot for the alternative scenarios
+
+    Args:
+        columns (List): The Columns of the Pandas Dataframe which shall be plotted
+        titles (List): The titles for the graphs for the corresponding columns
+        y_labels (List): The labels for the y-axis for the graphs for the corresponding columns
+        scenario (str, optional): The scenario to be plotted. Defaults to None.
+        entity (str, optional): The entity to be plotted, either Client, Node or Time. Defaults to "Client".
+        skip_rows (int, optional): How many rows should be skipped. Defaults to 0.
+        header (int, optional): Row index of the header. Defaults to 0.
+    """
     x_values = []
     for idx, column in enumerate(columns):
         y_values = []
@@ -64,7 +77,7 @@ def plot_data(columns, titles, y_labels, scenario=None, entity="Client", skip_ro
 
 base_path = Path().absolute()
 plt_path = os.path.join(base_path, "plots")
-# open the config.yaml as object
+
 NCSystems = ["Baseline", "Vivaldi", "Meridian", "Random"]
 client_columns = ["reconnections", "lat_mean", "total_msgs", "lost_msgs",
                   "rtt_rmse", "opt_rate", "discovery_rmse", "discovery_rate"]

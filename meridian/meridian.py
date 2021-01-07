@@ -1,6 +1,5 @@
 import math
 from .ringset import RingSet
-from .gram_schmidt import gram_schmidt
 from random import Random
 import numpy as np
 import pandas as pd
@@ -9,7 +8,20 @@ import warnings
 
 
 class Meridian(object):
-    def __init__(self, id, system_nodes, l=None, alpha=1, s=1.5, beta=0.5):
+    def __init__(self, id, system_nodes, l=None, alpha=1, s=1.5, beta=0.5, max_rings = 8):
+        """Meridian Node instance
+        Implements the Ring Structure to form the Meridian overlay by instantiating two ring sets
+        Can perform the ring membership management
+
+        Args:
+            id (uuid): uuid of the Merdidian Node
+            system_nodes (int): Amount of Nodes in the system
+            l (int, optional): Amount of nodes in the secondary ring.
+            alpha (int, optional): Ring base. Defaults to 1.
+            s (float, optional): Ring multiplier. Defaults to 1.5.
+            beta (float, optional): Acceptance threshold. Defaults to 0.5.
+            max_rings(int, optional): Amount of rings for both ring sets
+        """
         # Radius coefficients
         self.id = id
         self.alpha = alpha
@@ -22,7 +34,7 @@ class Meridian(object):
         # Amount of members per secondary ring
         self.l = l if l else system_nodes - self.k
         # Amount of rings in primary and secondary ringset
-        self.max_rings = 8
+        self.max_rings = max_rings
         self.ring_set = RingSet(
             k=self.k, l=self.l, alpha=alpha, s=s, max_rings=self.max_rings)
 
@@ -104,16 +116,33 @@ class Meridian(object):
         self.ring_set.insert_node(node_dict)
 
     def update_meridian(self, news):
+        """Updates the Meridian Node with the news dictionary
+
+        Args:
+            news (dict): New dictionary from the gossip
+        """
         self.ring_set.update_coordinates(
             news.get('id'), news.get('position').get_vector())
 
     def get_latency_matrix(self, ring_number):
+        """Creates the latency matrix for a given ring
+
+        Args:
+            ring_number (int): Ring Number 
+
+        Returns:
+            DataFrame: Pandas DataFrame of the latency matrix of the given ring
+        """
+        # Own vector of coordinates to other members as base of the matrix
         df = self.get_vector()
+        # Iterating over primary and secondary ring members
         for ring in [self.ring_set.get_ring(True, ring_number), self.ring_set.get_ring(False, ring_number)]:
             if ring.get('members'):
                 for member in ring.get('members'):
                     vector = member.get('coordinates')
+                    # Append vector of ring member to DataFrame
                     df = df.append(vector)
+        # Remove columns from DataFrame with no data
         indices = df.index.values.tolist()
         columns = df.columns.values.tolist()
         missing = [i for i in columns if i not in indices]
@@ -125,25 +154,48 @@ class Meridian(object):
         """The coordinates of node i consist of the tuple (di1, di2, ..., dik+l), where dii = 0.
 
         Returns:
-            list: The latency vector of the Meridian Node
+            DataFRame: The latency vector of the Meridian Node as Pandas DataFrame
         """
         data = {}
+        # Latency to self is 0
         data[self.id] = 0
+        # Getting the latency from every other node
         for ring in [*self.ring_set.primary_rings, *self.ring_set.secondary_rings]:
             for member in ring.get('members'):
                 data[member.get('id')] = member.get('latency')
 
         df = pd.DataFrame(data=data, index=[self.id])
         return df
+    
+    def gram_schmidt(latency_matrix):
+        """Calculates the orthonormalized vector using the gram-schmidt algorithm
 
+        Args:
+            latency_matrix (DataFrame): Pandas DataFrame of the latency matrix
+
+        Returns:
+            [tuple]: The orthonormalized vector of the latency matrix
+        """
+        x = latency_matrix.to_numpy()
+        Q, R = np.linalg.qr(x)
+        return Q
+    
     def calculate_hypervolume(self, latency_matrix):
+        """Calculates the hypervolume of the latency matrix polytope
+
+        Args:
+            latency_matrix (DataFrame): Pandas DataFrame of the latency matrix
+
+        Returns:
+            [float]: The hypervolume of the polytope
+        """
         # gs_matrix is the latency_matrix where every row subtracts the last row in the matrix (and the last row is all 0)
-        # Don't ask me why, thats how the original C++ code is: https://github.com/infinity0/libMeridian/blob/master/Query.cpp
+        # The original C++ code is: https://github.com/infinity0/libMeridian/blob/master/Query.cpp
         gs_matrix = latency_matrix
         rows = gs_matrix.index.values.tolist()
         for row in rows:
             gs_matrix.loc[row] = gs_matrix.loc[row] - gs_matrix.loc[rows[-1]]
-        gs_matrix = gram_schmidt(gs_matrix)
+        gs_matrix = self.gram_schmidt(gs_matrix)
         # Now we calculate the dot product of the gs_matrix and the latency_matrix(transposed)
         dot_matrix = np.matmul(gs_matrix, latency_matrix.transpose())
         # Drop them last column for reasons
@@ -154,6 +206,15 @@ class Meridian(object):
         return hv
 
     def reduce_set_by_n(self, latency_matrix, n):
+        """Reduces the set of k+l nodes n times until k nodes are left to set as primary nodes
+
+        Args:
+            latency_matrix (DataFrame): Pandas DataFrame of the latency matrix
+            n (int): Amount of reduction steps
+
+        Returns:
+            [type]: [description]
+        """
         # Go over n reducing steps
         latency_matrix = latency_matrix
         dropped_members = []

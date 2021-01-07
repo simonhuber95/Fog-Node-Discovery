@@ -8,7 +8,7 @@ class Metrics(object):
         self.env = env
 
     def all_client(self):
-        """Collects all metrics and returns them in a single dataframe
+        """Collects all client metrics and returns them in a single dataframe
 
         Returns:
             DataFrame: Collection of all metrics
@@ -26,6 +26,11 @@ class Metrics(object):
         return df_merged
 
     def all_time(self):
+        """Collects all metrics over time and returns them in a single dataframe
+
+        Returns:
+            DataFrame: Collection of all metrics
+        """
         unique = self.collect_unique_discovery()
         choice = self.collect_opt_choice_over_time()
         messages = self.collect_total_messages_over_time()
@@ -35,6 +40,11 @@ class Metrics(object):
         return df_merged.sort_values(by=['timestamp']).fillna(0)
 
     def all_node(self):
+        """Collects all Node metrics and returns them in a single dataframe
+
+        Returns:
+            DataFrame: Collection of all metrics
+        """
         workload = self.collect_workload()
         messages = self.collect_node_messages()
         data_frames = [workload, messages]
@@ -98,6 +108,11 @@ class Metrics(object):
         return df
 
     def collect_lost_messages(self):
+        """Counts the total lost messages for each client
+
+        Returns:
+            DataFrame: DataFrame filled with the message counts
+        """
         data = []
         for client in self.env.clients:
             filtered_in_history = list(
@@ -208,14 +223,17 @@ class Metrics(object):
         return df
 
     def collect_unique_discovery(self):
-        """
+        """Computes the unique discoveries per timestep
+        
+        Returns:
+            DataFrame: DataFrame filled with the Unique discoveries per timestep
         """
         data = []
         for node in self.env.nodes:
             for message in filter(lambda msg: msg.msg_type == 2, node.get('obj').out_msg_history):
                 data.append({"timestamp": np.ceil(
                     message.timestamp), "discovery": message.body})
-
+        # Define internal function that creates a set out of the messages of a timestep to count uniques
         def func(messages): return len(set(messages))
         df = pd.DataFrame(data=data, columns=["timestamp", "discovery"])
         df = df.groupby(["timestamp"])['discovery'].agg(
@@ -224,6 +242,11 @@ class Metrics(object):
         return df
 
     def collect_total_messages_over_time(self):
+        """Computes the total messages per timestep
+        
+        Returns:
+            DataFrame: DataFrame filled with the total messages per timestep
+        """
         data = []
 
         for elem in [*self.env.nodes, *self.env.clients]:
@@ -287,6 +310,11 @@ class Metrics(object):
         return df
 
     def collect_workload(self):
+        """Computes the min, mean and max workload and bandwidth per Node
+        
+        Returns:
+            DataFrame: DataFrame filled with the min, mean and max workload and bandwidth per node
+        """
         data = []
         for node in self.env.nodes:
             workloads = [elem.get(
@@ -314,6 +342,12 @@ class Metrics(object):
                                                 "avg bandwidth", "min bandwidth", "max bandwidth"])
 
     def collect_node_messages(self):
+        """Computes the total, outgoing and incoming message load per Node
+        
+        Returns:
+            DataFrame: DataFrame filled with the total message load per node
+        """
+        
         data = []
         for node in self.env.nodes:
             history = [*node["obj"].in_msg_history,
