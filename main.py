@@ -29,10 +29,6 @@ def main():
     client_path = base_path.joinpath(config["clients"]["path"])
     # set path to the Cell Tower json
     nodes_path = base_path.joinpath(config["nodes"]["path"])
-    # set path to the map of Berlin
-    map_path = base_path.joinpath(config["map"]["city"])
-    # set path to the roads of Berlin
-    roads_path = base_path.joinpath(config["map"]["roads"])
     # Set amount of client
     max_clients = config["clients"]["max_clients"]
     # Set the client ratio

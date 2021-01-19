@@ -425,7 +425,7 @@ class FogNode(object):
         Bandwidth is reduced linearly the more Clients are connected
 
         Returns:
-            float: Bandwidth in Gbps between [0.1, 1]
+            float: Bandwidth in Gbps between [sla, 1]
         """
         sla = 0.05
         return min(1, max(sla, 1 - (1-sla)* (len(self.clients)/(self.slots))))
